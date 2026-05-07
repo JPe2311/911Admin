@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — SAE 911 Capacitaciones</title>
+  <link rel="icon" type="image/png" href="src/img/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="src/firebase-config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: #080d1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeInFast { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .animate-fade { animation: fadeIn 0.35s ease-out both; }
+    .animate-slide { animation: slideUp 0.4s ease-out both; }
+    .spinner { animation: spin 0.8s linear infinite; display: inline-block; }
+
+    .login-bg {
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 30% 40%, #1a2744 0%, #080d1a 60%),
+                  radial-gradient(ellipse at 80% 80%, #1a1a2e 0%, transparent 50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .login-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: 20px;
+      padding: 52px 48px;
+      width: 420px;
+      max-width: 100%;
+      box-shadow: 0 32px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03);
+      text-align: center;
+    }
+
+    .login-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .login-logo-img {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 900;
+      color: #080d1a;
+      box-shadow: 0 8px 24px rgba(245,158,11,0.3);
+    }
+
+    .login-logo-text {
+      text-align: left;
+    }
+
+    .login-logo-title {
+      font-size: 24px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    .login-logo-subtitle {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .login-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(245,158,11,0.12);
+      border: 1px solid rgba(245,158,11,0.3);
+      color: #f59e0b;
+      border-radius: 99px;
+      padding: 6px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+
+    .login-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .login-subtitle {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 28px;
+    }
+
+    .btn-google {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #fff;
+      border-radius: 12px;
+      padding: 15px 24px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-google:hover {
+      background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(37,99,235,0.4);
+    }
+
+    .btn-google:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .login-error {
+      background: rgba(220,38,38,0.1);
+      border: 1px solid rgba(220,38,38,0.3);
+      color: #fca5a5;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      margin-top: 16px;
+      text-align: left;
+    }
+
+    .login-footer {
+      margin-top: 28px;
+      font-size: 11px;
+      color: #475569;
+    }
+
+    .login-footer a {
+      color: #64748b;
+      text-decoration: none;
+    }
+
+    .login-footer a:hover {
+      color: #94a3b8;
+    }
+
+    #logged-user {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #logged-user .user-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    #logged-user .user-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    #logged-user .user-email {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 20px;
+    }
+
+    #logged-user .btn-logout {
+      background: rgba(220,38,38,0.1);
+      border: 1px solid rgba(220,38,38,0.3);
+      color: #fca5a5;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+    }
+
+    #logged-user .btn-logout:hover {
+      background: rgba(220,38,38,0.2);
+    }
+
+    #logged-user .btn-ingresar {
+      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+      border: none;
+      color: #fff;
+      border-radius: 10px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      margin-top: 12px;
+    }
+
+    #logged-user .btn-ingresar:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(22,163,74,0.4);
+    }
+
+    .login-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-bg">
+    <div class="login-card animate-fade">
+      <div class="login-logo">
+        <div class="login-logo-img">911</div>
+        <div class="login-logo-text">
+          <div class="login-logo-title">SAE 911</div>
+          <div class="login-logo-subtitle">Capacitaciones</div>
+        </div>
+      </div>
+      
+      <div class="login-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+        Acceso Seguro
+      </div>
+
+      <div id="login-form">
+        <div class="login-title">Bienvenido</div>
+        <div class="login-subtitle">Iniciá sesión con tu cuenta institucional</div>
+        
+        <button id="btn-google" class="btn-google" onclick="loginGoogle()">
+          <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.19-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.96 20.53 7.7 23 12 23z"/><path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.96 3.47 2.18 6.73l2.85 2.85c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Continuar con Google
+        </button>
+        
+        <div id="login-error" class="login-error" style="display:none"></div>
+      </div>
+
+      <div id="logged-user">
+        <div class="user-avatar" id="user-avatar"></div>
+        <div class="user-name" id="user-name"></div>
+        <div class="user-email" id="user-email"></div>
+        <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+        <br/>
+        <button class="btn-ingresar" onclick="ingresarSistema()">Ingresar al Sistema</button>
+      </div>
+
+      <div class="login-footer">
+        <a href="#" onclick="showLoginForm(); return false;">¿Necesitás ayuda?</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    window.auth = null;
+    window.currentUser = null;
+
+    async function initAuth() {
+      if (!window.FIREBASE_CONFIG?.apiKey) {
+        document.getElementById('login-error').textContent = 'Firebase no configurado. Contactá al administrador.';
+        document.getElementById('login-error').style.display = 'block';
+        return;
+      }
+
+      try {
+        const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+        const { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+
+        window.app = initializeApp(window.FIREBASE_CONFIG);
+        window.auth = getAuth(window.app);
+        window.GoogleAuthProvider = GoogleAuthProvider;
+        window.signInWithPopup = signInWithPopup;
+        window.signOut = signOut;
+
+        onAuthStateChanged(window.auth, (user) => {
+          window.currentUser = user;
+          if (user) {
+            showLoggedUser(user);
+          }
+        });
+      } catch (e) {
+        console.error('Error inicializando auth:', e);
+        document.getElementById('login-error').textContent = 'Error al inicializar: ' + e.message;
+        document.getElementById('login-error').style.display = 'block';
+      }
+    }
+
+    window.loginGoogle = async function() {
+      const btn = document.getElementById('btn-google');
+      const errorDiv = document.getElementById('login-error');
+      
+      btn.disabled = true;
+      btn.innerHTML = '<span class="login-spinner"></span> Conectando...';
+      errorDiv.style.display = 'none';
+
+      try {
+        const provider = new window.GoogleAuthProvider();
+        
+        const result = await window.signInWithPopup(window.auth, provider);
+        window.currentUser = result.user;
+        showLoggedUser(result.user);
+      } catch (e) {
+        console.error('Login error:', e);
+        errorDiv.textContent = 'Error: ' + e.message;
+        errorDiv.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.19-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.96 20.53 7.7 23 12 23z"/><path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.96 3.47 2.18 6.73l2.85 2.85c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Continuar con Google';
+      }
+    };
+
+    window.logout = async function() {
+      await window.signOut(window.auth);
+      window.currentUser = null;
+      showLoginForm();
+    };
+
+    function showLoggedUser(user) {
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('logged-user').style.display = 'block';
+      
+      const name = user.displayName || user.email.split('@')[0];
+      const initial = name.charAt(0).toUpperCase();
+      
+      document.getElementById('user-avatar').textContent = initial;
+      document.getElementById('user-name').textContent = name;
+      document.getElementById('user-email').textContent = user.email;
+
+      sessionStorage.setItem('userEmail', user.email);
+      sessionStorage.setItem('userName', name);
+    }
+
+    function showLoginForm() {
+      document.getElementById('login-form').style.display = 'block';
+      document.getElementById('logged-user').style.display = 'none';
+      sessionStorage.removeItem('userEmail');
+    }
+
+    window.ingresarSistema = function() {
+      window.location.href = 'index.html';
+    };
+
+    initAuth();
+  </script>
+</body>
+</html>
