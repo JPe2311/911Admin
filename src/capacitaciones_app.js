@@ -145,11 +145,13 @@ async function agregarAsistentesDB(capId, dnis) {
     var agregados = 0, errores = [];
     
     for (var dni of dnis) {
-        var emp = personal.find(e => e.dni === dni);
+        if (dni.length < 6) { errores.push(dni + " (DNI muy corto)"); continue; }
+        
+        var emp = personal.find(e => e.dni === dni || e.dni === dni.replace(/^0+/, ""));
         if (!emp) { errores.push(dni); continue; }
         
-        var ya = list.find(a => a.capacitacionId === capId && a.dni === dni);
-        if (ya) continue;
+        var ya = list.find(a => a.capacitacionId === capId && a.dni === emp.dni);
+        if (ya) { errores.push(dni + " (ya asignado)"); continue; }
         
         var id = "ASIST_" + Date.now().toString(36) + Math.random().toString(36).substr(2,4);
         await saveDoc('asistencias', id, {
@@ -594,8 +596,13 @@ async function renderCapacitaciones(container) {
     if (caps.length === 0) {
         html += '<div style="background:' + C.card + ';border-radius:14px;padding:40px;text-align:center;color:' + C.gray + '">No hay capacitaciones</div>';
     } else {
+        var capsOrdenadas = [...caps].sort((a, b) => {
+            var order = { "abierta": 0, "en curso": 1, "cerrada": 2 };
+            return (order[a.estado] || 3) - (order[b.estado] || 3);
+        });
+        
         html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px">';
-        for (var cap of caps) {
+        for (var cap of capsOrdenadas) {
             var cant = asists.filter(a => a.capacitacionId === cap.id).length;
             var estadoColor = cap.estado === "cerrada" ? C.gray : (cap.estado === "en curso" ? C.orange : C.green);
             var dictadorTxt = cap.dictador ? (cap.dictador.externo ? cap.dictador.externo : cap.dictador.nombre) : "No especificado";
@@ -612,9 +619,57 @@ async function renderCapacitaciones(container) {
                 '<div style="margin-top:12px"><button onclick="verCapacitacion(\'' + cap.id + '\')" style="width:100%;background:' + C.mid + ';color:#fff;border:none;border-radius:6px;padding:10px;font-size:12px;cursor:pointer">Ver Detalle (' + cant + ')</button></div></div>';
         }
         html += '</div>';
+        
+        html += '<h3 style="font-size:18px;font-weight:900;color:' + C.navy + ';margin:32px 0 16px">Todas las Capacitaciones (Tabla)</h3>';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">' +
+            '<div><input type="text" id="filtro-tema" placeholder="Filtrar por tema..." onkeyup="filtrarCapacitaciones()" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
+            '<div><input type="text" id="filtro-dictado" placeholder="Filtrar por quien dictó..." onkeyup="filtrarCapacitaciones()" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
+            '<div><select id="filtro-estado-cap" onchange="filtrarCapacitaciones()" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">Todos los estados</option><option value="abierta">Abierta</option><option value="en curso">En Curso</option><option value="cerrada">Cerrada</option></select></div></div>';
+        
+        html += '<div style="background:' + C.card + ';border-radius:14px;overflow:hidden;max-height:50vh;overflow-y:auto">' +
+            '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:' + C.bg + '"><th style="padding:10px;text-align:left;font-size:11px">Título</th><th style="padding:10px;text-align:left;font-size:11px">Tema</th><th style="padding:10px;text-align:left;font-size:11px">Modalidad</th><th style="padding:10px;text-align:left;font-size:11px">Fechas</th><th style="padding:10px;text-align:left;font-size:11px">Dictado por</th><th style="padding:10px;text-align:left;font-size:11px">Estado</th><th style="padding:10px;text-align:right;font-size:11px">Asist.</th></tr></thead><tbody id="tabla-caps">';
+        
+        for (var cap of capsOrdenadas) {
+            var cant = asists.filter(a => a.capacitacionId === cap.id).length;
+            var estadoColor = cap.estado === "cerrada" ? C.gray : (cap.estado === "en curso" ? C.orange : C.green);
+            var dictadorTxt = cap.dictador ? (cap.dictador.externo ? cap.dictador.externo : cap.dictador.nombre) : "-";
+            html += '<tr style="border-bottom:1px solid ' + C.border + '"><td style="padding:10px;font-weight:600">' + cap.titulo + '</td><td style="padding:10px">' + (cap.temaPrincipal||"") + '</td><td style="padding:10px">' + (cap.modalidad||"") + '</td><td style="padding:10px;font-size:11px">' + (cap.fechaInicio||"") + (cap.fechaFin ? " → " + cap.fechaFin : "") + '</td><td style="padding:10px">' + dictadorTxt + '</td><td style="padding:10px"><span style="background:' + estadoColor + ';color:#fff;padding:3px 6px;border-radius:4px;font-size:10px;font-weight:700">' + (cap.estado||"") + '</span></td><td style="padding:10px;text-align:right">' + cant + '</td></tr>';
+        }
+        html += '</tbody></table></div>';
     }
     html += '</div>';
     container.innerHTML = html;
+    window.capsGlobal = caps;
+    window.asistsGlobal = asists;
+}
+
+async function filtrarCapacitaciones() {
+    var tema = document.getElementById("filtro-tema")?.value.toLowerCase() || "";
+    var dictado = document.getElementById("filtro-dictado")?.value.toLowerCase() || "";
+    var estado = document.getElementById("filtro-estado-cap")?.value || "";
+    
+    var caps = window.capsGlobal || [];
+    var asists = window.asistsGlobal || [];
+    
+    var filtrado = caps.filter(c => {
+        if (tema && (c.temaPrincipal || "").toLowerCase().indexOf(tema) === -1 && c.titulo.toLowerCase().indexOf(tema) === -1) return false;
+        if (dictado) {
+            var dictTxt = c.dictador ? (c.dictador.externo || c.dictador.nombre || "") : "";
+            if (dictTxt.toLowerCase().indexOf(dictado) === -1) return false;
+        }
+        if (estado && c.estado !== estado) return false;
+        return true;
+    });
+    
+    var html = filtrado.map(c => {
+        var cant = asists.filter(a => a.capacitacionId === c.id).length;
+        var estadoColor = c.estado === "cerrada" ? C.gray : (c.estado === "en curso" ? C.orange : C.green);
+        var dictadorTxt = c.dictador ? (c.dictador.externo ? c.dictador.externo : c.dictador.nombre) : "-";
+        return '<tr style="border-bottom:1px solid ' + C.border + '"><td style="padding:10px;font-weight:600">' + c.titulo + '</td><td style="padding:10px">' + (c.temaPrincipal||"") + '</td><td style="padding:10px">' + (c.modalidad||"") + '</td><td style="padding:10px;font-size:11px">' + (c.fechaInicio||"") + (c.fechaFin ? " → " + c.fechaFin : "") + '</td><td style="padding:10px">' + dictadorTxt + '</td><td style="padding:10px"><span style="background:' + estadoColor + ';color:#fff;padding:3px 6px;border-radius:4px;font-size:10px;font-weight:700">' + (c.estado||"") + '</span></td><td style="padding:10px;text-align:right">' + cant + '</td></tr>';
+    }).join("");
+    
+    var tbody = document.getElementById("tabla-caps");
+    if (tbody) tbody.innerHTML = html;
 }
 
 // ============================================
@@ -642,6 +697,7 @@ async function verPerfil(dni) {
     var btnAccion = tieneAccesoDB("personal") ? (emp.estado === "baja" ? 
         '<button onclick="darAlta(\'' + dni + '\')" style="background:' + C.green + ';color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;margin-right:8px">Dar de Alta</button>' :
         '<button onclick="darBaja(\'' + dni + '\')" style="background:' + C.orange + ';color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;margin-right:8px">Dar de Baja</button>') : '';
+    var btnEditar = tieneAccesoDB("personal") ? '<button onclick="openModalAgregar(\'' + dni + '\')" style="background:' + C.blue + ';color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;margin-right:8px">Editar</button>' : '';
     
     var html = '<div style="background:' + C.navy + ';padding:24px 32px;border-radius:16px 16px 0 0;color:#fff">' +
         '<h2 style="font-size:24px;font-weight:900;margin:0">' + emp.nombre + '</h2>' +
@@ -652,7 +708,7 @@ async function verPerfil(dni) {
         
         '<div style="padding:16px;border-top:1px solid ' + C.border + ';display:flex;justify-content:space-between;align-items:center">' +
         '<div><span style="background:' + estadoColor + ';color:#fff;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700">' + estadoLabel + '</span></div>' +
-        '<div>' + btnAccion + '<button onclick="closeModal(\'modal-perfil\')" style="padding:10px 24px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cerrar</button></div>' +
+        '<div>' + btnEditar + btnAccion + '<button onclick="closeModal(\'modal-perfil\')" style="padding:10px 24px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cerrar</button></div>' +
         '</div>';
     
     m.querySelector("div").innerHTML = html;
@@ -669,14 +725,21 @@ async function verPerfil(dni) {
         '<div><div style="font-size:11px;color:' + C.gray + '">Estado</div><div style="font-weight:700;color:' + C.green + '">' + (emp.estado || "activo").toUpperCase() + '</div></div>' +
         '</div></div>' +
         
-        '<div><h4 style="font-size:12px;color:' + C.gray + ';text-transform:uppercase;margin-bottom:8px">Capacitaciones (' + caps.length + ')</h4>' +
+        '<div><h4 style="font-size:12px;color:' + C.gray + ';text-transform:uppercase;margin-bottom:8px">Datos de Contacto</h4>' +
+        '<div style="background:' + C.bg + ';padding:16px;border-radius:8px">' +
+        '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Teléfono</div><div style="font-weight:700">' + (emp.telefono || "No registrado") + '</div></div>' +
+        '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Email</div><div style="font-weight:700">' + (emp.email || "No registrado") + '</div></div>' +
+        '<div><div style="font-size:11px;color:' + C.gray + '">Dirección</div><div style="font-weight:700">' + (emp.direccion || "No registrada") + '</div></div>' +
+        '</div></div>' +
+        
+        '<div style="grid-column:span 2"><h4 style="font-size:12px;color:' + C.gray + ';text-transform:uppercase;margin-bottom:8px">Capacitaciones (' + caps.length + ')</h4>' +
         '<div style="background:' + C.bg + ';padding:16px;border-radius:8px;max-height:300px;overflow-y:auto">';
     
     if (caps.length === 0) {
         htmlPerfil += '<div style="color:' + C.gray + ';text-align:center;padding:20px">Sin capacitaciones</div>';
     } else {
         caps.forEach(c => {
-            htmlPerfil += '<div style="padding:8px;border-bottom:1px solid ' + C.border + '"><div style="font-weight:600">' + c.titulo + '</div><div style="font-size:11px;color:' + C.gray + '">' + (c.fecha || "") + ' • ' + c.tipo + '</div></div>';
+            htmlPerfil += '<div style="padding:8px;border-bottom:1px solid ' + C.border + '"><div style="font-weight:600">' + c.titulo + '</div><div style="font-size:11px;color:' + C.gray + '">' + (c.fechaInicio || "") + (c.estado ? ' • ' + c.estado : '') + '</div></div>';
         });
     }
     htmlPerfil += '</div></div></div>';
@@ -687,7 +750,7 @@ async function verPerfil(dni) {
 // ============================================
 // MODALES
 // ============================================
-async function openModalAgregar() {
+async function openModalAgregar(dni) {
     var estruct = await getEstructuraDB();
     var nivel4 = estruct.filter(e => e.nivel === 4);
     var optsD = nivel4.map(e => '<option value="' + e.id + '">' + e.nombre + '</option>').join("");
@@ -699,26 +762,43 @@ async function openModalAgregar() {
     ].map(j => '<option value="' + j + '">' + j + '</option>').join("");
     var optsE = ["Seguridad", "Profesional", "Técnico", "Civil"].map(e => '<option value="' + e + '">' + e + '</option>').join("");
     
+    var modoEdicion = !!dni;
+    var emp = dni ? await getPersonalByIdDB(dni) : null;
+    
     var m = document.getElementById("modal-agregar");
     if (!m) {
         m = document.createElement("div");
         m.id = "modal-agregar";
         m.style = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;overflow:auto";
-        m.innerHTML = '<div style="background:' + C.card + ';border-radius:16px;padding:32px;width:450px;max-height:90vh;overflow:auto">' +
-            '<h2 style="font-size:20px;font-weight:900;color:' + C.navy + ';margin-bottom:20px">Agregar Empleado</h2>' +
-            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">DNI *</label><input id="emp-dni" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
-            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Nombre *</label><input id="emp-nombre" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
-            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Jerarquía</label><select id="emp-jerarquia" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsJ + '</select></div>' +
-            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Escalafón</label><select id="emp-escalafon" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsE + '</select></div>' +
-            '<div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">División *</label><select id="emp-division" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsD + '</select></div>' +
+        m.innerHTML = '<div style="background:' + C.card + ';border-radius:16px;padding:32px;width:500px;max-height:90vh;overflow:auto">' +
+            '<h2 style="font-size:20px;font-weight:900;color:' + C.navy + ';margin-bottom:20px">' + (modoEdicion ? "Editar Empleado" : "Agregar Empleado") + '</h2>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">DNI *</label><input id="emp-dni" ' + (modoEdicion ? 'readonly style="background:' + C.bg + ';"' : '') + ' style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
+            '<div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Nombre *</label><input id="emp-nombre" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Jerarquía</label><select id="emp-jerarquia" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsJ + '</select></div>' +
+            '<div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Escalafón</label><select id="emp-escalafon" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsE + '</select></div></div>' +
+            '<div style="margin-bottom:12"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">División *</label><select id="emp-division" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsD + '</select></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Teléfono</label><input id="emp-telefono" type="tel" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
+            '<div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Email</label><input id="emp-email" type="email" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div></div>' +
+            '<div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Dirección</label><input id="emp-direccion" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
             '<div style="display:flex;gap:12px;margin-top:20px">' +
             '<button onclick="closeModal(\'modal-agregar\')" style="flex:1;padding:12px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cancelar</button>' +
             '<button onclick="guardarEmpleado()" style="flex:1;padding:12px;border-radius:8px;border:none;background:' + C.blue + ';color:#fff;cursor:pointer;font-weight:700">Guardar</button>' +
             '</div></div>';
         document.body.appendChild(m);
-    } else {
-        m.style.display = "flex";
     }
+    
+    if (emp) {
+        document.getElementById("emp-dni").value = emp.dni || "";
+        document.getElementById("emp-nombre").value = emp.nombre || "";
+        document.getElementById("emp-jerarquia").value = emp.jerarquia || "";
+        document.getElementById("emp-escalafon").value = emp.escalafon || "";
+        document.getElementById("emp-division").value = emp.dependencia || "";
+        document.getElementById("emp-telefono").value = emp.telefono || "";
+        document.getElementById("emp-email").value = emp.email || "";
+        document.getElementById("emp-direccion").value = emp.direccion || "";
+    }
+    
+    m.style.display = "flex";
 }
 
 async function guardarEmpleado() {
@@ -727,9 +807,12 @@ async function guardarEmpleado() {
     var jerarquia = document.getElementById("emp-jerarquia").value;
     var escalafon = document.getElementById("emp-escalafon").value;
     var division = document.getElementById("emp-division").value;
+    var telefono = document.getElementById("emp-telefono").value;
+    var email = document.getElementById("emp-email").value;
+    var direccion = document.getElementById("emp-direccion").value;
     
     if (!dni || !nombre || !division) { alert("DNI, Nombre y División son req."); return; }
-    await addOrUpdatePersonalDB({ dni, nombre, jerarquia, escalafon, dependencia: division, estado: "activo" });
+    await addOrUpdatePersonalDB({ dni, nombre, jerarquia, escalafon, dependencia: division, telefono, email, direccion, estado: "activo" });
     closeModal("modal-agregar");
     renderPersonal(document.getElementById("main"));
     alert("Empleado guardado");
@@ -868,7 +951,9 @@ async function agregarAsistManual() {
     if (!dnis) return;
     var lista = dnis.split("\n").map(d => d.trim().replace(/[^0-9]/g, "")).filter(d => d.length >= 7);
     var res = await agregarAsistentesDB(window.capActualId, lista);
-    alert("Agregados: " + res.agregados);
+    var msg = "Agregados: " + res.agregados;
+    if (res.errores.length) msg += ". No encontrados: " + res.errores.join(", ");
+    alert(msg);
     verCapacitacion(window.capActualId);
 }
 
@@ -1218,6 +1303,8 @@ window.renderAdmin = renderAdmin;
 window.renderDashCaps = renderDashCaps;
 window.renderDashPersonal = renderDashPersonal;
 window.filtrarPersonal = filtrarPersonal;
+window.filtrarCapacitaciones = filtrarCapacitaciones;
+window.openModalCapacitacion = openModalCapacitacion;
 window.openModalAgregar = openModalAgregar;
 window.guardarEmpleado = guardarEmpleado;
 window.openModalCapacitacion = openModalCapacitacion;
