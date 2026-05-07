@@ -314,27 +314,6 @@ async function importarPersonalCSVDB(content) {
     }
     return { agregados, actualizados };
 }
-        
-        imported.push({ 
-            dni: dni, 
-            nombre: cols[1] || "", 
-            jerarquia: cols[2] || "", 
-            dependencia: depId,
-            escalafon: cols[4] || "",
-            telefono: cols[5] || "",
-            email: cols[6] || "",
-            direccion: cols[7] || ""
-        });
-    });
-    var agregados = 0, actualizados = 0;
-    var personal = await getPersonalDB();
-    for (var emp of imported) {
-        var existe = personal.find(e => e.dni === emp.dni);
-        await addOrUpdatePersonalDB(emp);
-        if (existe) actualizados++; else agregados++;
-    }
-    return { agregados, actualizados };
-}
 
 // ============================================
 // ESTADISTICAS
