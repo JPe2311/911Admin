@@ -244,7 +244,26 @@ function getJerarquiasDB(personal) {
     var set = new Set();
     personal.forEach(p => { if (p.jerarquia) set.add(p.jerarquia); });
     var arr = Array.from(set).sort();
-    return arr.length ? arr : ["Oficial", "Suboficial", "Agente", "Sgte.", "Cgto.", "Sarg.", "Tte.", "Cap.", "Mayor", "Cmte."];
+    return arr.length ? arr : [
+        "COMISARIO GENERAL",
+        "COMISARIO MAYOR",
+        "COMISARIO INSPECTOR",
+        "COMISARIO",
+        "SUBCOMISARIO",
+        "OFICIAL PRINCIPAL",
+        "OFICIAL INSPECTOR",
+        "OFICIAL SUBINSPECTOR",
+        "OFICIAL AYUDANTE",
+        "SUBOFICIAL MAYOR",
+        "SUBOFICIAL PRINCIPAL",
+        "SARGENTO AYUDANTE",
+        "SARGENTO PRIMERO",
+        "SARGENTO",
+        "CABO PRIMERO",
+        "CABO",
+        "AGENTE",
+        "Personal Civil"
+    ];
 }
 
 // ============================================
@@ -260,7 +279,13 @@ async function importarPersonalCSVDB(content) {
         if (cols.length < 2 || !cols[0]) return;
         var dni = cols[0].replace(/[^0-9]/g, "");
         if (dni.length < 7) return;
-        imported.push({ dni, nombre: cols[1] || "", jerarquia: cols[2] || "", dependencia: cols[3] || "" });
+        imported.push({ 
+            dni: dni, 
+            nombre: cols[1] || "", 
+            jerarquia: cols[2] || "", 
+            escalafon: cols[4] || "", 
+            dependencia: cols[3] || "" 
+        });
     });
     var agregados = 0, actualizados = 0;
     var personal = await getPersonalDB();
@@ -503,12 +528,12 @@ async function renderPersonal(container) {
         
         '<div style="background:' + C.card + ';border-radius:14px;overflow:hidden;max-height:60vh;overflow-y:auto">' +
         '<table style="width:100%;border-collapse:collapse">' +
-        '<thead><tr style="background:' + C.bg + '"><th style="padding:12px;text-align:left;font-size:11px">DNI</th><th style="padding:12px;text-align:left;font-size:11px">Nombre</th><th style="padding:12px;text-align:left;font-size:11px">Jerarquía</th><th style="padding:12px;text-align:left;font-size:11px">División</th><th style="padding:12px;text-align:left;font-size:11px">Caps</th><th style="padding:12px;text-align:right;font-size:11px">Acción</th></tr></thead>' +
+        '<thead><tr style="background:' + C.bg + '"><th style="padding:12px;text-align:left;font-size:11px">DNI</th><th style="padding:12px;text-align:left;font-size:11px">Nombre</th><th style="padding:12px;text-align:left;font-size:11px">Jerarquía</th><th style="padding:12px;text-align:left;font-size:11px">Escalafón</th><th style="padding:12px;text-align:left;font-size:11px">División</th><th style="padding:12px;text-align:left;font-size:11px">Caps</th><th style="padding:12px;text-align:right;font-size:11px">Acción</th></tr></thead>' +
         '<tbody id="tabla-personal">';
     
     for (var p of pers.slice(0, 50)) {
         var capsCount = (await getCapacitacionesDelEmpleadoDB(p.dni)).length;
-        html += '<tr style="border-bottom:1px solid ' + C.border + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + p.nombre + '</a></td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px"><span style="background:' + (capsCount > 0 ? C.greenBg : C.bg) + ';padding:4px 8px;border-radius:4px;font-size:11px;color:' + (capsCount > 0 ? C.green : C.gray) + '">' + capsCount + '</span></td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver Perfil</button></td></tr>';
+        html += '<tr style="border-bottom:1px solid ' + C.border + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + p.nombre + '</a></td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + (p.escalafon||"-") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px"><span style="background:' + (capsCount > 0 ? C.greenBg : C.bg) + ';padding:4px 8px;border-radius:4px;font-size:11px;color:' + (capsCount > 0 ? C.green : C.gray) + '">' + capsCount + '</span></td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver Perfil</button></td></tr>';
     }
     
     html += '</tbody></table></div></div>';
@@ -616,6 +641,7 @@ async function verPerfil(dni) {
         '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">DNI</div><div style="font-weight:700;font-size:16px;font-family:monospace">' + emp.dni + '</div></div>' +
         '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Nombre Completo</div><div style="font-weight:700">' + emp.nombre + '</div></div>' +
         '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Jerarquía</div><div style="font-weight:700">' + (emp.jerarquia || "No asignada") + '</div></div>' +
+        '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Escalafón</div><div style="font-weight:700">' + (emp.escalafon || "No asignado") + '</div></div>' +
         '<div><div style="font-size:11px;color:' + C.gray + '">Estado</div><div style="font-weight:700;color:' + C.green + '">' + (emp.estado || "activo").toUpperCase() + '</div></div>' +
         '</div></div>' +
         
@@ -641,7 +667,13 @@ async function openModalAgregar() {
     var estruct = await getEstructuraDB();
     var nivel4 = estruct.filter(e => e.nivel === 4);
     var optsD = nivel4.map(e => '<option value="' + e.id + '">' + e.nombre + '</option>').join("");
-    var optsJ = ["Oficial", "Suboficial", "Agente", "Sgte.", "Cgto.", "Sarg.", "Tte.", "Cap.", "Mayor", "Cmte."].map(j => '<option value="' + j + '">' + j + '</option>').join("");
+    var optsJ = [
+        "COMISARIO GENERAL", "COMISARIO MAYOR", "COMISARIO INSPECTOR", "COMISARIO", "SUBCOMISARIO",
+        "OFICIAL PRINCIPAL", "OFICIAL INSPECTOR", "OFICIAL SUBINSPECTOR", "OFICIAL AYUDANTE",
+        "SUBOFICIAL MAYOR", "SUBOFICIAL PRINCIPAL", "SARGENTO AYUDANTE", "SARGENTO PRIMERO", "SARGENTO",
+        "CABO PRIMERO", "CABO", "AGENTE", "Personal Civil"
+    ].map(j => '<option value="' + j + '">' + j + '</option>').join("");
+    var optsE = ["Seguridad", "Profesional", "Técnico", "Civil"].map(e => '<option value="' + e + '">' + e + '</option>').join("");
     
     var m = document.getElementById("modal-agregar");
     if (!m) {
@@ -653,6 +685,7 @@ async function openModalAgregar() {
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">DNI *</label><input id="emp-dni" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Nombre *</label><input id="emp-nombre" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Jerarquía</label><select id="emp-jerarquia" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsJ + '</select></div>' +
+            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Escalafón</label><select id="emp-escalafon" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsE + '</select></div>' +
             '<div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">División *</label><select id="emp-division" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsD + '</select></div>' +
             '<div style="display:flex;gap:12px;margin-top:20px">' +
             '<button onclick="closeModal(\'modal-agregar\')" style="flex:1;padding:12px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cancelar</button>' +
@@ -668,10 +701,11 @@ async function guardarEmpleado() {
     var dni = document.getElementById("emp-dni").value;
     var nombre = document.getElementById("emp-nombre").value;
     var jerarquia = document.getElementById("emp-jerarquia").value;
+    var escalafon = document.getElementById("emp-escalafon").value;
     var division = document.getElementById("emp-division").value;
     
     if (!dni || !nombre || !division) { alert("DNI, Nombre y División son req."); return; }
-    await addOrUpdatePersonalDB({ dni, nombre, jerarquia, dependencia: division, estado: "activo" });
+    await addOrUpdatePersonalDB({ dni, nombre, jerarquia, escalafon, dependencia: division, estado: "activo" });
     closeModal("modal-agregar");
     renderPersonal(document.getElementById("main"));
     alert("Empleado guardado");
@@ -807,8 +841,8 @@ function dropCSV(e) {
 
 async function exportarPersonal() {
     var pers = await getPersonalDB();
-    var rows = pers.map(p => [p.dni, p.nombre, p.jerarquia, p.dependencia].join(";"));
-    var csv = "DNI;Nombre;Jerarquia;Dependencia\n" + rows.join("\n");
+    var rows = pers.map(p => [p.dni, p.nombre, p.jerarquia, p.dependencia, p.escalafon || ""].join(";"));
+    var csv = "DNI;Nombre;Jerarquia;Dependencia;Escalafon\n" + rows.join("\n");
     var blob = new Blob([csv], { type: "text/csv" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
