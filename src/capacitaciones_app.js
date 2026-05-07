@@ -939,7 +939,8 @@ document.body.onload = function() {
     
     document.getElementById("root").innerHTML = 
         '<nav style="background:' + C.navy + ';padding:16px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;flex-wrap:wrap">' +
-        '<div style="font-size:20px;font-weight:900;color:#fff">CAP</div>' +
+        '<img src="src/img/favicon.png" style="width:36px;height:36px;border-radius:6px">' +
+        '<div style="font-size:18px;font-weight:900;color:#fff">911 - Admin</div>' +
         '<button class="nav-btn" id="btn-dashboard" onclick="setView(\'dashboard\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Inicio</button>' +
         (usu.rol === ROLES.PERSONAL || usu.rol === ROLES.RECURSOS || usu.rol === ROLES.GESTION ? '<button class="nav-btn" id="btn-personal" onclick="setView(\'personal\')" style="background:transparent;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Personal</button>' : '') +
         (usu.rol === ROLES.CAPACITACION || usu.rol === ROLES.RECURSOS || usu.rol === ROLES.GESTION ? '<button class="nav-btn" id="btn-capacitaciones" onclick="setView(\'capacitaciones\')" style="background:transparent;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Capacitaciones</button>' : '') +
