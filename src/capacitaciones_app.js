@@ -154,8 +154,10 @@ async function agregarAsistentesDB(capId, dnis) {
         if (ya) { errores.push(dni + " (ya asignado)"); continue; }
         
         var id = "ASIST_" + Date.now().toString(36) + Math.random().toString(36).substr(2,4);
+        var nombreCompleto = (emp.apellido || "") + (emp.nombre ? ", " + emp.nombre : "");
         await saveDoc('asistencias', id, {
-            id, capacitacionId: capId, dni: emp.dni, nombre: emp.nombre,
+            id, capacitacionId: capId, dni: emp.dni, nombre: nombreCompleto,
+            apellido: emp.apellido, nombre: emp.nombre,
             jerarquia: emp.jerarquia, dependencia: emp.dependencia,
             presente: true, fecha: new Date().toISOString()
         });
@@ -290,6 +292,28 @@ async function importarPersonalCSVDB(content) {
             if (found) depId = found.id;
             else if (! estrut.find(e => e.id === depInput)) depId = depInput;
         }
+        
+        imported.push({ 
+            dni: dni, 
+            apellido: cols[1] || "", 
+            nombre: cols[2] || "",
+            jerarquia: cols[4] || "", 
+            dependencia: depId,
+            escalafon: cols[5] || "",
+            telefono: cols[6] || "",
+            email: cols[7] || "",
+            direccion: cols[8] || ""
+        });
+    });
+    var agregados = 0, actualizados = 0;
+    var personal = await getPersonalDB();
+    for (var emp of imported) {
+        var existe = personal.find(e => e.dni === emp.dni);
+        await addOrUpdatePersonalDB(emp);
+        if (existe) actualizados++; else agregados++;
+    }
+    return { agregados, actualizados };
+}
         
         imported.push({ 
             dni: dni, 
@@ -538,7 +562,7 @@ async function renderPersonal(container) {
         '</div>' +
         
         '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px">' +
-        '<div><input type="text" id="buscar-nombre" placeholder="Buscar por nombre..." onkeyup="filtrarPersonal()" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
+        '<div><input type="text" id="buscar-nombre" placeholder="Buscar por apellido o nombre..." onkeyup="filtrarPersonal()" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
         '<div>' + filterJer + '</div>' +
         '<div>' + filterDiv + '</div>' +
         '<div>' + filterEstado + '</div>' +
@@ -546,14 +570,15 @@ async function renderPersonal(container) {
         
         '<div style="background:' + C.card + ';border-radius:14px;overflow:hidden;max-height:60vh;overflow-y:auto">' +
         '<table style="width:100%;border-collapse:collapse">' +
-        '<thead><tr style="background:' + C.bg + '"><th style="padding:12px;text-align:left;font-size:11px">DNI</th><th style="padding:12px;text-align:left;font-size:11px">Nombre</th><th style="padding:12px;text-align:left;font-size:11px">Jerarquía</th><th style="padding:12px;text-align:left;font-size:11px">Escalafón</th><th style="padding:12px;text-align:left;font-size:11px">División</th><th style="padding:12px;text-align:left;font-size:11px">Caps</th><th style="padding:12px;text-align:right;font-size:11px">Acción</th></tr></thead>' +
+        '<thead><tr style="background:' + C.bg + '"><th style="padding:12px;text-align:left;font-size:11px">DNI</th><th style="padding:12px;text-align:left;font-size:11px">Apellido</th><th style="padding:12px;text-align:left;font-size:11px">Nombre</th><th style="padding:12px;text-align:left;font-size:11px">Jerarquía</th><th style="padding:12px;text-align:left;font-size:11px">División</th><th style="padding:12px;text-align:left;font-size:11px">Caps</th><th style="padding:12px;text-align:right;font-size:11px">Acción</th></tr></thead>' +
         '<tbody id="tabla-personal">';
     
     for (var p of pers.slice(0, 50)) {
         var capsCount = (await getCapacitacionesDelEmpleadoDB(p.dni)).length;
         var isBaja = p.estado === "baja";
         var rowStyle = isBaja ? 'background:#fef2f2' : '';
-        html += '<tr style="border-bottom:1px solid ' + C.border + ';' + rowStyle + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600' + (isBaja ? ';color:' + C.gray : '') + '"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + p.nombre + '</a></td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + (p.escalafon||"-") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px"><span style="background:' + (capsCount > 0 ? C.greenBg : C.bg) + ';padding:4px 8px;border-radius:4px;font-size:11px;color:' + (capsCount > 0 ? C.green : C.gray) + '">' + capsCount + '</span></td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver</button></td></tr>';
+        var nombreCompleto = (p.apellido || "") + (p.nombre ? ", " + p.nombre : "");
+        html += '<tr style="border-bottom:1px solid ' + C.border + ';' + rowStyle + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600' + (isBaja ? ';color:' + C.gray : '') + '"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + (p.apellido || "") + '</a></td><td style="padding:12px' + (isBaja ? ';color:' + C.gray : '') + '">' + (p.nombre || "") + '</td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px"><span style="background:' + (capsCount > 0 ? C.greenBg : C.bg) + ';padding:4px 8px;border-radius:4px;font-size:11px;color:' + (capsCount > 0 ? C.green : C.gray) + '">' + capsCount + '</span></td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver</button></td></tr>';
     }
     
     html += '</tbody></table></div></div>';
@@ -570,7 +595,10 @@ async function filtrarPersonal() {
     var pers = await getPersonalDB();
     var estruct = await getEstructuraDB();
     var filtrado = pers.filter(p => {
-        if (nombre && p.nombre.toLowerCase().indexOf(nombre) === -1) return false;
+        if (nombre) {
+            var searchText = (p.apellido || "").toLowerCase() + " " + (p.nombre || "").toLowerCase();
+            if (searchText.indexOf(nombre) === -1) return false;
+        }
         if (jer && p.jerarquia !== jer) return false;
         if (div && p.dependencia !== div) return false;
         if (estado && p.estado !== estado) return false;
@@ -580,7 +608,7 @@ async function filtrarPersonal() {
     var html = filtrado.slice(0, 50).map(p => {
         var isBaja = p.estado === "baja";
         var rowStyle = isBaja ? 'background:#fef2f2' : '';
-        return '<tr style="border-bottom:1px solid ' + C.border + ';' + rowStyle + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600' + (isBaja ? ';color:' + C.gray : '') + '"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + p.nombre + '</a></td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + (p.escalafon||"-") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px">-</td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver</button></td></tr>';
+        return '<tr style="border-bottom:1px solid ' + C.border + ';' + rowStyle + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600' + (isBaja ? ';color:' + C.gray : '') + '"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + (p.apellido || "") + '</a></td><td style="padding:12px' + (isBaja ? ';color:' + C.gray : '') + '">' + (p.nombre || "") + '</td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px">-</td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver</button></td></tr>';
     }).join("");
     
     var tbody = document.getElementById("tabla-personal");
@@ -711,9 +739,10 @@ async function verPerfil(dni) {
         '<button onclick="darAlta(\'' + dni + '\')" style="background:' + C.green + ';color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;margin-right:8px">Dar de Alta</button>' :
         '<button onclick="darBaja(\'' + dni + '\')" style="background:' + C.orange + ';color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;margin-right:8px">Dar de Baja</button>') : '';
     var btnEditar = tieneAccesoDB("personal") ? '<button onclick="openModalAgregar(\'' + dni + '\')" style="background:' + C.blue + ';color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;margin-right:8px">Editar</button>' : '';
+    var nombreCompleto = (emp.apellido || "") + (emp.nombre ? ", " + emp.nombre : "");
     
     var html = '<div style="background:' + C.navy + ';padding:24px 32px;border-radius:16px 16px 0 0;color:#fff">' +
-        '<h2 style="font-size:24px;font-weight:900;margin:0">' + emp.nombre + '</h2>' +
+        '<h2 style="font-size:24px;font-weight:900;margin:0">' + nombreCompleto + '</h2>' +
         '<div style="font-size:13px;opacity:0.8;margin-top:4px">' + emp.dni + ' • ' + (emp.jerarquia||"Sin jerarquía") + '</div>' +
         '<div style="font-size:12px;opacity:0.7;margin-top:4px">' + getNombrePorIdDB(emp.dependencia, estruct) + '</div></div>' +
         
@@ -732,7 +761,8 @@ async function verPerfil(dni) {
         '<div><h4 style="font-size:12px;color:' + C.gray + ';text-transform:uppercase;margin-bottom:8px">Datos Personales</h4>' +
         '<div style="background:' + C.bg + ';padding:16px;border-radius:8px">' +
         '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">DNI</div><div style="font-weight:700;font-size:16px;font-family:monospace">' + emp.dni + '</div></div>' +
-        '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Nombre Completo</div><div style="font-weight:700">' + emp.nombre + '</div></div>' +
+        '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Apellido</div><div style="font-weight:700">' + (emp.apellido || "") + '</div></div>' +
+        '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Nombre</div><div style="font-weight:700">' + (emp.nombre || "") + '</div></div>' +
         '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Jerarquía</div><div style="font-weight:700">' + (emp.jerarquia || "No asignada") + '</div></div>' +
         '<div style="margin-bottom:12"><div style="font-size:11px;color:' + C.gray + '">Escalafón</div><div style="font-weight:700">' + (emp.escalafon || "No asignado") + '</div></div>' +
         '<div><div style="font-size:11px;color:' + C.gray + '">Estado</div><div style="font-weight:700;color:' + C.green + '">' + (emp.estado || "activo").toUpperCase() + '</div></div>' +
@@ -786,10 +816,11 @@ async function openModalAgregar(dni) {
         m.innerHTML = '<div style="background:' + C.card + ';border-radius:16px;padding:32px;width:500px;max-height:90vh;overflow:auto">' +
             '<h2 style="font-size:20px;font-weight:900;color:' + C.navy + ';margin-bottom:20px">' + (modoEdicion ? "Editar Empleado" : "Agregar Empleado") + '</h2>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">DNI *</label><input id="emp-dni" ' + (modoEdicion ? 'readonly style="background:' + C.bg + ';"' : '') + ' style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
-            '<div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Nombre *</label><input id="emp-nombre" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div></div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Jerarquía</label><select id="emp-jerarquia" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsJ + '</select></div>' +
-            '<div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Escalafón</label><select id="emp-escalafon" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsE + '</select></div></div>' +
-            '<div style="margin-bottom:12"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">División *</label><select id="emp-division" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsD + '</select></div>' +
+            '<div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Apellido *</label><input id="emp-apellido" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Nombre *</label><input id="emp-nombre" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
+            '<div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Jerarquía</label><select id="emp-jerarquia" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsJ + '</select></div></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Escalafón</label><select id="emp-escalafon" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsE + '</select></div>' +
+            '<div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">División *</label><select id="emp-division" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsD + '</select></div></div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Teléfono</label><input id="emp-telefono" type="tel" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
             '<div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Email</label><input id="emp-email" type="email" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div></div>' +
             '<div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Dirección</label><input id="emp-direccion" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
@@ -802,6 +833,7 @@ async function openModalAgregar(dni) {
     
     if (emp) {
         document.getElementById("emp-dni").value = emp.dni || "";
+        document.getElementById("emp-apellido").value = emp.apellido || "";
         document.getElementById("emp-nombre").value = emp.nombre || "";
         document.getElementById("emp-jerarquia").value = emp.jerarquia || "";
         document.getElementById("emp-escalafon").value = emp.escalafon || "";
@@ -816,6 +848,7 @@ async function openModalAgregar(dni) {
 
 async function guardarEmpleado() {
     var dni = document.getElementById("emp-dni").value;
+    var apellido = document.getElementById("emp-apellido").value;
     var nombre = document.getElementById("emp-nombre").value;
     var jerarquia = document.getElementById("emp-jerarquia").value;
     var escalafon = document.getElementById("emp-escalafon").value;
@@ -824,8 +857,8 @@ async function guardarEmpleado() {
     var email = document.getElementById("emp-email").value;
     var direccion = document.getElementById("emp-direccion").value;
     
-    if (!dni || !nombre || !division) { alert("DNI, Nombre y División son req."); return; }
-    await addOrUpdatePersonalDB({ dni, nombre, jerarquia, escalafon, dependencia: division, telefono, email, direccion, estado: "activo" });
+    if (!dni || !apellido || !nombre || !division) { alert("DNI, Apellido, Nombre y División son req."); return; }
+    await addOrUpdatePersonalDB({ dni, apellido, nombre, jerarquia, escalafon, dependencia: division, telefono, email, direccion, estado: "activo" });
     closeModal("modal-agregar");
     renderPersonal(document.getElementById("main"));
     alert("Empleado guardado");
@@ -937,9 +970,11 @@ async function verCapacitacion(id) {
     }
     document.getElementById("botones-asist").innerHTML = botonesHtml;
     
-    var html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:' + C.bg + '"><th style="padding:10px;text-align:left">DNI</th><th style="padding:10px;text-align:left">Nombre</th><th style="padding:10px;text-align:left">Jerarquía</th><th style="padding:10px;text-align:left">División</th></tr></thead><tbody>';
+    var html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:' + C.bg + '"><th style="padding:10px;text-align:left">DNI</th><th style="padding:10px;text-align:left">Apellido</th><th style="padding:10px;text-align:left">Nombre</th><th style="padding:10px;text-align:left">Jerarquía</th><th style="padding:10px;text-align:left">División</th></tr></thead><tbody>';
     for (var a of asists) {
-        html += '<tr style="border-bottom:1px solid ' + C.border + '"><td style="padding:10px;font-family:monospace">' + a.dni + '</td><td style="padding:10px;font-weight:600">' + a.nombre + '</td><td style="padding:10px">' + (a.jerarquia||"") + '</td><td style="padding:10px">' + getNombrePorIdDB(a.dependencia, estruct) + '</td></tr>';
+        var nombreMostrar = a.apellido ? a.apellido : (a.nombre || "");
+        var nombre2Mostrar = a.nombre ? a.nombre : "";
+        html += '<tr style="border-bottom:1px solid ' + C.border + '"><td style="padding:10px;font-family:monospace">' + a.dni + '</td><td style="padding:10px;font-weight:600">' + nombreMostrar + '</td><td style="padding:10px">' + nombre2Mostrar + '</td><td style="padding:10px">' + (a.jerarquia||"") + '</td><td style="padding:10px">' + getNombrePorIdDB(a.dependencia, estruct) + '</td></tr>';
     }
     html += '</tbody></table>';
     document.getElementById("lista-asist").innerHTML = html;
@@ -992,8 +1027,8 @@ function dropCSV(e) {
 
 async function exportarPersonal() {
     var pers = await getPersonalDB();
-    var rows = pers.map(p => [p.dni, p.nombre, p.jerarquia, p.dependencia, p.escalafon || "", p.telefono || "", p.email || "", p.direccion || ""].join(";"));
-    var csv = "DNI;Nombre;Jerarquia;Dependencia;Escalafon;Telefono;Email;Direccion\n" + rows.join("\n");
+    var rows = pers.map(p => [p.dni, p.apellido || "", p.nombre || "", p.jerarquia || "", p.dependencia || "", p.escalafon || "", p.telefono || "", p.email || "", p.direccion || ""].join(";"));
+    var csv = "DNI;Apellido;Nombre;Jerarquia;Dependencia;Escalafon;Telefono;Email;Direccion\n" + rows.join("\n");
     var blob = new Blob([csv], { type: "text/csv" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
