@@ -844,9 +844,6 @@ async function openModalEstructura(editarId) {
         var e = items.find(x => x.id === editarId);
         if (e) { nombreVal = e.nombre; nivelVal = e.nivel; padreVal = e.padre; }
     }
-        var e = items.find(x => x.id === editarId);
-        if (e) { nombreVal = e.nombre; nivelVal = e.nivel; padreVal = e.padre; }
-    }
     
     if (!m) {
         m = document.createElement("div");
