@@ -299,38 +299,161 @@ async function getEstadisticasDB() {
 // ============================================
 // RENDER DASHBOARD
 // ============================================
-function renderDashboard(container) {
+async function renderDashboard(container) {
+    var stats = await getEstadisticasDB();
+    var pers = await getPersonalDB();
+    var caps = await getCapacitacionesDB();
+    var asists = await getAsistenciasDB();
+    
+    var html = '<div style="padding:20">' +
+        '<div style="background:linear-gradient(135deg,' + C.navy + ',' + C.blue + ');border-radius:16px;padding:32px;margin-bottom:24px;color:#fff">' +
+        '<h1 style="font-size:32px;font-weight:950">911 - Admin Gestión General</h1>' +
+        '<div style="font-size:14px;opacity:0.8;margin-top:8px">' + pers.length + ' personal • ' + caps.length + ' capacitaciones • ' + asists.length + ' inscripciones</div></div>' +
+        
+        '<div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid ' + C.border + ';padding-bottom:8px">' +
+        '<button onclick="renderDashCaps()" id="dash-tab-caps" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">Capacitaciones</button>' +
+        '<button onclick="renderDashPersonal()" id="dash-tab-personal" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">Personal</button>' +
+        '</div>' +
+        
+        '<div id="dash-contenido"></div>';
+    
+    container.innerHTML = html;
+    
+    renderDashCaps();
+}
+
+function renderDashCaps() {
+    document.getElementById("dash-tab-caps").style.background = C.blue;
+    document.getElementById("dash-tab-caps").style.color = "#fff";
+    document.getElementById("dash-tab-personal").style.background = C.bg;
+    document.getElementById("dash-tab-personal").style.color = C.navy;
+    
     getEstadisticasDB().then(stats => {
-        var html = '<div style="padding:20">' +
-            '<div style="background:linear-gradient(135deg,' + C.navy + ',' + C.blue + ');border-radius:16px;padding:32px;margin-bottom:24px;color:#fff">' +
-            '<h1 style="font-size:32px;font-weight:950">911 - Admin Gestión General</h1>' +
-            '<div style="font-size:14px;opacity:0.8;margin-top:8px">' + stats.totalPersonal + ' personal • ' + stats.totalCaps + ' capacitaciones • ' + stats.totalAsistentes + ' inscripciones</div></div>' +
-            
-            '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">' +
-            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Personal Total</div><div style="font-size:32px;font-weight:900;color:' + C.blue + '">' + stats.totalPersonal + '</div></div>' +
-            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Capacitaciones</div><div style="font-size:32px;font-weight:900;color:' + C.green + '">' + stats.totalCaps + '</div></div>' +
-            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Asistencias Totales</div><div style="font-size:32px;font-weight:900;color:' + C.orange + '">' + stats.totalAsistentes + '</div></div>' +
-            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Promedio/Cap</div><div style="font-size:32px;font-weight:900;color:' + C.mid + '">' + (stats.totalCaps ? Math.round(stats.totalAsistentes / stats.totalCaps) : 0) + '</div></div>' +
+        var div = document.getElementById("dash-contenido");
+        
+        var perType = Object.keys(stats.porTipo).map(k => ({ tipo: k, cant: stats.porTipo[k] })).sort((a, b) => b.cant - a.cant);
+        var perMes = Object.keys(stats.porMes).map(k => ({ mes: k, cant: stats.porMes[k] })).sort((a, b) => b.cant - a.cant).slice(0, 6);
+        
+        var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px">' +
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Total Capacitaciones</div><div style="font-size:32px;font-weight:900;color:' + C.blue + '">' + stats.totalCaps + '</div></div>' +
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Total Asistencias</div><div style="font-size:32px;font-weight:900;color:' + C.green + '">' + stats.totalAsistentes + '</div></div>' +
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Promedio/Cap</div><div style="font-size:32px;font-weight:900;color:' + C.orange + '">' + (stats.totalCaps ? Math.round(stats.totalAsistentes / stats.totalCaps) : 0) + '</div></div>' +
             '</div>' +
             
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
-            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><h3 style="font-size:14px;font-weight:800;color:' + C.navy + ';margin-bottom:16px">Por Tipo de Capacitación</h3>';
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><h3 style="font-size:14px;font-weight:800;color:' + C.navy + ';margin-bottom:16px">Por Tipo</h3>';
         
-        Object.keys(stats.porTipo).forEach(k => {
-            var cant = stats.porTipo[k];
-            var pct = Math.round((cant / stats.totalAsistentes) * 100);
-            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid ' + C.border + '"><span style="text-transform:capitalize">' + k + '</span><span style="font-weight:700">' + cant + ' (' + pct + '%)</span></div>';
-        });
+        if (perType.length === 0) {
+            html += '<div style="color:' + C.gray + ';text-align:center;padding:20px">Sin datos</div>';
+        } else {
+            perType.forEach(p => {
+                var pct = Math.round((p.cant / stats.totalAsistentes) * 100);
+                html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid ' + C.border + '"><span>' + (p.tipo === "multiple" ? "Múltiple" : "Única") + '</span><span style="font-weight:700">' + p.cant + ' (' + pct + '%)</span></div>';
+            });
+        }
         html += '</div>' +
             
-            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><h3 style="font-size:14px;font-weight:800;color:' + C.navy + ';margin-bottom:16px">Por Mes</h3>';
-        var meses = Object.keys(stats.porMes).sort().reverse().slice(0,6);
-        meses.reverse().forEach(m => {
-            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid ' + C.border + '"><span>' + m + '</span><span style="font-weight:700">' + stats.porMes[m] + '</span></div>';
-        });
-        html += '</div></div></div>';
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><h3 style="font-size:14px;font-weight:800;color:' + C.navy + ';margin-bottom:16px">Últimos 6 meses</h3>';
         
-        container.innerHTML = html;
+        if (perMes.length === 0) {
+            html += '<div style="color:' + C.gray + ';text-align:center;padding:20px">Sin datos</div>';
+        } else {
+            perMes.slice().reverse().forEach(p => {
+                html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid ' + C.border + '"><span>' + p.mes + '</span><span style="font-weight:700">' + p.cant + '</span></div>';
+            });
+        }
+        html += '</div></div>';
+        
+        div.innerHTML = html;
+    });
+}
+
+function renderDashPersonal() {
+    document.getElementById("dash-tab-caps").style.background = C.bg;
+    document.getElementById("dash-tab-caps").style.color = C.navy;
+    document.getElementById("dash-tab-personal").style.background = C.blue;
+    document.getElementById("dash-tab-personal").style.color = "#fff";
+    
+    getEstadisticasDB().then(async stats => {
+        var pers = await getPersonalDB();
+        var estruct = await getEstructuraDB();
+        var div = document.getElementById("dash-contenido");
+        
+        var porDireccion = {};
+        var porDepartamento = {};
+        var porDivision = {};
+        var porJerarquia = {};
+        
+        pers.forEach(p => {
+            if (p.dependencia) {
+                var ruta = [];
+                var actual = p.dependencia;
+                while (actual) {
+                    var e = estruct.find(x => x.id === actual);
+                    if (e) { ruta.unshift(e); actual = e.padre; }
+                    else break;
+                }
+                
+                var dir = ruta.find(x => x.nivel === 2);
+                var dept = ruta.find(x => x.nivel === 3);
+                var divi = ruta.find(x => x.nivel === 4);
+                
+                if (dir) porDireccion[dir.nombre] = (porDireccion[dir.nombre] || 0) + 1;
+                if (dept) porDepartamento[dept.nombre] = (porDepartamento[dept.nombre] || 0) + 1;
+                if (divi) porDivision[divi.nombre] = (porDivision[divi.nombre] || 0) + 1;
+            } else {
+                porDireccion["Sin asignar"] = (porDireccion["Sin asignar"] || 0) + 1;
+                porDepartamento["Sin asignar"] = (porDepartamento["Sin asignar"] || 0) + 1;
+                porDivision["Sin asignar"] = (porDivision["Sin asignar"] || 0) + 1;
+            }
+            
+            if (p.jerarquia) {
+                porJerarquia[p.jerarquia] = (porJerarquia[p.jerarquia] || 0) + 1;
+            }
+        });
+        
+        var perDir = Object.keys(porDireccion).map(k => ({ nombre: k, cant: porDireccion[k] })).sort((a, b) => b.cant - a.cant);
+        var perDepto = Object.keys(porDepartamento).map(k => ({ nombre: k, cant: porDepartamento[k] })).sort((a, b) => b.cant - a.cant);
+        var perDiv = Object.keys(porDivision).map(k => ({ nombre: k, cant: porDivision[k] })).sort((a, b) => b.cant - a.cant);
+        var perJer = Object.keys(porJerarquia).map(k => ({ nombre: k, cant: porJerarquia[k] })).sort((a, b) => b.cant - a.cant);
+        
+        var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">' +
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Total Personal</div><div style="font-size:32px;font-weight:900;color:' + C.blue + '">' + stats.totalPersonal + '</div></div>' +
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Direcciones</div><div style="font-size:32px;font-weight:900;color:' + C.green + '">' + perDir.length + '</div></div>' +
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Departamentos</div><div style="font-size:32px;font-weight:900;color:' + C.orange + '">' + perDepto.length + '</div></div>' +
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><div style="font-size:11px;color:' + C.gray + ';text-transform:uppercase">Divisiones</div><div style="font-size:32px;font-weight:900;color:' + C.mid + '">' + perDiv.length + '</div></div>' +
+            '</div>' +
+            
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">' +
+            
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><h3 style="font-size:14px;font-weight:800;color:' + C.navy + ';margin-bottom:16px">Por Departamento</h3>';
+        
+        if (perDepto.length === 0) {
+            html += '<div style="color:' + C.gray + ';text-align:center;padding:20px">Sin datos</div>';
+        } else {
+            perDepto.forEach(p => {
+                var pct = Math.round((p.cant / stats.totalPersonal) * 100);
+                html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid ' + C.border + '"><span>' + p.nombre + '</span><span style="font-weight:700">' + p.cant + ' (' + pct + '%)</span></div>';
+            });
+        }
+        html += '</div>' +
+            
+            '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '"><h3 style="font-size:14px;font-weight:800;color:' + C.navy + ';margin-bottom:16px">Por División</h3>';
+        
+        if (perDiv.length === 0) {
+            html += '<div style="color:' + C.gray + ';text-align:center;padding:20px">Sin datos</div>';
+        } else {
+            perDiv.slice(0, 15).forEach(p => {
+                var pct = Math.round((p.cant / stats.totalPersonal) * 100);
+                html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid ' + C.border + '"><span>' + p.nombre + '</span><span style="font-weight:700">' + p.cant + ' (' + pct + '%)</span></div>';
+            });
+            if (perDiv.length > 15) {
+                html += '<div style="color:' + C.gray + ';font-size:11px;text-align:center;padding:8px">Y ' + (perDiv.length - 15) + ' más...</div>';
+            }
+        }
+        html += '</div></div>';
+        
+        div.innerHTML = html;
     });
 }
 
@@ -795,7 +918,7 @@ async function renderAdminEstructura() {
     var estructura = await getEstructuraDB();
     var div = document.getElementById("admin-contenido");
     
-    var nivelLabels = ["", "Dirección", "Departamento", "División"];
+    var nivelLabels = ["", "Dirección General", "Dirección", "Departamento", "División"];
     
     var html = '<div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:center">' +
         '<div style="font-size:16px;font-weight:700;color:' + C.navy + '">Estructura Organizacional (' + estructura.length + ')</div>' +
@@ -808,7 +931,7 @@ async function renderAdminEstructura() {
         var items = estructura.filter(e => e.nivel === nivel).sort((a, b) => a.nombre.localeCompare(b.nombre));
         if (items.length === 0) continue;
         
-        html += '<div style="font-size:12px;font-weight:700;color:' + C.gray + ';margin-top:' + (nivel > 1 ? '16px' : '0') + ';margin-bottom:8px">' + nivelLabels[nivel] + 'S</div>';
+        html += '<div style="font-size:12px;font-weight:700;color:' + C.gray + ';margin-top:' + (nivel > 1 ? '16px' : '0') + ';margin-bottom:8px">' + nivelLabels[nivel] + '</div>';
         
         for (var e of items) {
             var padding = (nivel - 1) * 20;
@@ -833,7 +956,7 @@ async function openModalEstructura(editarId) {
     var optsPadre = '<option value="">-- Raíz --</option>';
     items.forEach(e => { optsPadre += '<option value="' + e.id + '">' + e.nombre + '</option>'; });
     
-    var optsNivel = '<option value="1">Dirección</option><option value="2">Departamento</option><option value="3">División</option><option value="4">Área</option>';
+    var optsNivel = '<option value="1">Dirección General</option><option value="2">Dirección</option><option value="3">Departamento</option><option value="4">División</option>';
     
     var titulo = editarId ? "Editar Área" : "Agregar Área";
     var nombreVal = "";
@@ -1005,6 +1128,8 @@ window.agregarAsistManual = agregarAsistManual;
 window.renderPersonal = renderPersonal;
 window.renderCapacitaciones = renderCapacitaciones;
 window.renderAdmin = renderAdmin;
+window.renderDashCaps = renderDashCaps;
+window.renderDashPersonal = renderDashPersonal;
 window.filtrarPersonal = filtrarPersonal;
 window.openModalAgregar = openModalAgregar;
 window.guardarEmpleado = guardarEmpleado;
