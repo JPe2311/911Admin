@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>911 - Admin Gestión General</title>
+  <link rel="icon" type="image/png" href="src/img/favicon.png" />
   <script src="src/firebase-config.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,25 +13,6 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="module">
-    // Check auth before loading app
-    async function init() {
-      const userEmail = sessionStorage.getItem('userEmail');
-      if (!userEmail) {
-        window.location.href = 'login.html';
-        return;
-      }
-      
-      // Dynamically load the app
-      const script = document.createElement('script');
-      script.src = 'src/capacitaciones_app.js';
-      script.onload = () => {
-        if (window.initApp) window.initApp();
-      };
-      document.body.appendChild(script);
-    }
-    
-    init();
-  </script>
+  <script src="src/capacitaciones_app.js?v=2"></script>
 </body>
 </html>
