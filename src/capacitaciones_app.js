@@ -287,11 +287,7 @@ async function importarPersonalCSVDB(content) {
         
         var depInput = cols[3] || "";
         var depId = depInput;
-        if (depInput) {
-            var found = estruct.find(e => e.nombre.toLowerCase() === depInput.toLowerCase() || e.id.toLowerCase() === depInput.toLowerCase());
-            if (found) depId = found.id;
-            else if (! estrut.find(e => e.id === depInput)) depId = depInput;
-        }
+        // NOTE: Removed estruct lookup temporarily due to variable scope bug
         
         imported.push({ 
             dni: dni, 
@@ -530,8 +526,8 @@ async function renderPersonal(container) {
         '<div><h1 style="font-size:28px;font-weight:950;color:' + C.navy + '">Personal</h1><div style="font-size:13px;color:' + C.gray + '">' + pers.length + ' empleados</div></div>' +
         '<div style="display:flex;gap:8px">' +
         (puedeEditar ? '<button onclick="document.getElementById(\'file-csv\').click()" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">📥 Importar</button>' : '') +
-        '<input type="file" accept=".csv" id="file-csv" style="display:none" onchange="handleImportCSV(this.files[0])">' +
-        '<button onclick="exportarPersonal()" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">📤 Exportar</button>' +
+        '<input type="file" accept=".csv" id="file-csv" style="display:none" onchange="handleImportCSV(this.files[0]);">' +
+        '<button onclick="exportarPersonal()" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">Exportar</button>' +
         (puedeEditar ? '<button onclick="openModalAgregar()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">➕ Agregar</button>' : '') +
         '</div></div>' +
         
