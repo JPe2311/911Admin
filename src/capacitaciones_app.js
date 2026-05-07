@@ -21,9 +21,10 @@ var K_USERS = "cap_usuarios";
 
 // ROLES
 var ROLES = {
-    ADMIN: "admin",
-    GESTOR: "gestor",
-    CONSULTA: "consulta"
+    PERSONAL: "personal",
+    RECURSOS: "recursos",
+    CAPACITACION: "capacitacion",
+    GESTION: "gestion"
 };
 
 // ============================================
@@ -41,6 +42,7 @@ function addUsuario(email, rol, nombre) {
     var idx = list.findIndex(function(u) { return u.email === email; });
     if (idx >= 0) {
         list[idx].rol = rol;
+        list[idx].nombre = nombre;
         list[idx].updatedAt = new Date().toISOString();
     } else {
         list.push({ email: email, nombre: nombre, rol: rol, createdAt: new Date().toISOString() });
@@ -58,15 +60,18 @@ function tieneAcceso(seccion) {
     if (!userEmail) return false;
     var usu = getUsuarioByEmail(userEmail);
     if (!usu) return false;
-    if (usu.rol === ROLES.ADMIN) return true;
-    return true;
+    if (usu.rol === ROLES.GESTION) return true;
+    if (usu.rol === ROLES.PERSONAL) return seccion === "personal";
+    if (usu.rol === ROLES.CAPACITACION) return seccion === "capacitaciones";
+    if (usu.rol === ROLES.RECURSOS) return seccion === "recursos";
+    return false;
 }
 
 function puedeAdmin() {
     var userEmail = sessionStorage.getItem("userEmail");
     if (!userEmail) return false;
     var usu = getUsuarioByEmail(userEmail);
-    return usu && usu.rol === ROLES.ADMIN;
+    return usu && usu.rol === ROLES.GESTION;
 }
 
 // ============================================
@@ -357,6 +362,11 @@ function renderDashboard(container) {
 // RENDER PERSONAL
 // ============================================
 function renderPersonal(container) {
+    if (!tieneAcceso("personal")) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:' + C.gray + '">No tenés acceso a Personal</div>';
+        return;
+    }
+    
     var pers = getPersonal();
     var jerarquias = getJerarquias();
     var estruct = getEstructura();
@@ -370,14 +380,16 @@ function renderPersonal(container) {
     nivel4.forEach(function(e) { filterDiv += '<option value="' + e.id + '">' + e.nombre + '</option>'; });
     filterDiv += '</select>';
     
+    var puedeEditar = tieneAcceso("personal");
+    
     var html = '<div style="padding:20">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:24px;align-items:center">' +
         '<div><h1 style="font-size:28px;font-weight:950;color:' + C.navy + '">Personal</h1><div style="font-size:13px;color:' + C.gray + '">' + pers.length + ' empleados</div></div>' +
         '<div style="display:flex;gap:8px">' +
-        '<button onclick="document.getElementById(\'file-csv\').click()" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">📥 Importar</button>' +
+        (puedeEditar ? '<button onclick="document.getElementById(\'file-csv\').click()" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">📥 Importar</button>' : '') +
         '<input type="file" accept=".csv" id="file-csv" style="display:none" onchange="handleImportCSV(this.files[0])">' +
         '<button onclick="exportarPersonal()" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">📤 Exportar</button>' +
-        '<button onclick="openModalAgregar()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">➕ Agregar</button>' +
+        (puedeEditar ? '<button onclick="openModalAgregar()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">➕ Agregar</button>' : '') +
         '</div></div>' +
         
         '<div style="border:2px dashed ' + C.border + ';border-radius:12px;padding:24px;text-align:center;background:' + C.bg + ';margin-bottom:20px" ondrop="dropCSV(event)" ondragover="this.style.borderColor=\'' + C.blue + '\'" ondragleave="this.style.borderColor=\'' + C.border + '\'" onclick="document.getElementById(\'file-csv\').click()">' +
@@ -431,13 +443,19 @@ function filtrarPersonal() {
 // RENDER CAPACITACIONES
 // ============================================
 function renderCapacitaciones(container) {
+    if (!tieneAcceso("capacitaciones")) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:' + C.gray + '">No tenés acceso a Capacitaciones</div>';
+        return;
+    }
+    
     var caps = getCapacitaciones();
     var asists = getAsistencias();
+    var puedeEditar = tieneAcceso("capacitaciones");
     
     var html = '<div style="padding:20">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:24px;align-items:center">' +
         '<div><h1 style="font-size:28px;font-weight:950;color:' + C.navy + '">Capacitaciones</h1><div style="font-size:13px;color:' + C.gray + '">' + caps.length + ' registradas</div></div>' +
-        '<button onclick="openModalCapacitacion()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">➕ Nueva Capacitación</button>' +
+        (puedeEditar ? '<button onclick="openModalCapacitacion()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">➕ Nueva Capacitación</button>' : '') +
         '</div>';
     
     if (caps.length === 0) {
@@ -703,6 +721,7 @@ function verCapacitacion(id) {
     var cap = getCapacitaciones().find(function(c) { return c.id === id; });
     if (!cap) return;
     var asists = getAsistentesCap(id);
+    var puedeEditar = tieneAcceso("capacitaciones");
     
     var m = document.getElementById("modal-ver-cap");
     if (!m) {
@@ -712,11 +731,7 @@ function verCapacitacion(id) {
         m.innerHTML = '<div style="background:' + C.card + ';border-radius:16px;padding:32px;width:700px;max-height:85vh;overflow:auto">' +
             '<h2 id="cap-titulo-disp" style="font-size:20px;font-weight:900;color:' + C.navy + ';margin-bottom:8px"></h2>' +
             '<div id="cap-info-disp" style="font-size:12px;color:' + C.gray + ';margin-bottom:16px"></div>' +
-            '<div style="display:flex;gap:8px;margin-bottom:16px">' +
-            '<button onclick="document.getElementById(\'file-asist\').click()" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">📥 Subir DNIs CSV</button>' +
-            '<input type="file" id="file-asist" style="display:none" onchange="handleSubirAsist(this.files[0])">' +
-            '<button onclick="agregarAsistManual()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">➕ Agregar DNIs</button>' +
-            '</div>' +
+            '<div id="botones-asist" style="display:flex;gap:8px;margin-bottom:16px"></div>' +
             '<div id="lista-asist" style="max-height:40vh;overflow-y:auto"></div>' +
             '<button onclick="closeModal(\'modal-ver-cap\')" style="margin-top:16px;padding:10px 20px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cerrar</button></div>';
         document.body.appendChild(m);
@@ -725,6 +740,14 @@ function verCapacitacion(id) {
     window.capActualId = id;
     document.getElementById("cap-titulo-disp").textContent = cap.titulo;
     document.getElementById("cap-info-disp").textContent = (cap.fechaDictado || "") + " • " + (cap.temaPrincipal || "") + " • " + asists.length + " asistentes";
+    
+    var botonesHtml = "";
+    if (puedeEditar) {
+        botonesHtml = '<button onclick="document.getElementById(\'file-asist\').click()" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">📥 Subir DNIs CSV</button>' +
+            '<input type="file" id="file-asist" style="display:none" onchange="handleSubirAsist(this.files[0])">' +
+            '<button onclick="agregarAsistManual()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;cursor:pointer">➕ Agregar DNIs</button>';
+    }
+    document.getElementById("botones-asist").innerHTML = botonesHtml;
     
     var html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:' + C.bg + '"><th style="padding:10px;text-align:left">DNI</th><th style="padding:10px;text-align:left">Nombre</th><th style="padding:10px;text-align:left">Jerarquía</th><th style="padding:10px;text-align:left">División</th></tr></thead><tbody>';
     asists.forEach(function(a) {
@@ -840,13 +863,14 @@ function renderAdmin(container) {
         html += '<tr><td colspan="5" style="padding:24px;text-align:center;color:' + C.gray + '">No hay usuarios configurados</td></tr>';
     } else {
         usuarios.forEach(function(u) {
-            var rolLabel = u.rol === ROLES.ADMIN ? "Administrador" : (u.rol === ROLES.GESTOR ? "Gestor" : "Consulta");
-            var color = u.rol === ROLES.ADMIN ? C.red : (u.rol === ROLES.GESTOR ? C.orange : C.gray);
+            var rolLabel = u.rol === ROLES.GESTION ? "Gestión" : (u.rol === ROLES.PERSONAL ? "Personal" : (u.rol === ROLES.CAPACITACION ? "Capacitación" : "Recursos"));
+            var color = u.rol === ROLES.GESTION ? C.red : (u.rol === ROLES.PERSONAL ? C.blue : (u.rol === ROLES.CAPACITACION ? C.green : C.orange));
+            var acceso = u.rol === ROLES.GESTION ? "Total" : (u.rol === ROLES.PERSONAL ? "Personal" : (u.rol === ROLES.CAPACITACION ? "Capacitaciones" : "Personal + Caps"));
             html += '<tr style="border-bottom:1px solid ' + C.border + '">' +
                 '<td style="padding:12px;font-family:monospace;font-size:12px">' + u.email + '</td>' +
                 '<td style="padding:12px;font-weight:600">' + (u.nombre || "-") + '</td>' +
                 '<td style="padding:12px"><span style="background:' + color + ';color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:700">' + rolLabel + '</span></td>' +
-                '<td style="padding:12px">' + (u.rol === ROLES.ADMIN ? " total" : (u.rol === ROLES.GESTOR ? "Personal, Caps" : "Solo consulta")) + '</td>' +
+                '<td style="padding:12px">' + acceso + '</td>' +
                 '<td style="padding:12px;text-align:right"><button onclick="eliminarUsuario(\'' + u.email + '\')" style="background:' + C.red + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Eliminar</button></td></tr>';
         });
     }
@@ -865,7 +889,7 @@ function openModalUsuario() {
             '<h2 style="font-size:20px;font-weight:900;color:' + C.navy + ';margin-bottom:20px">Agregar Usuario</h2>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Email *</label><input id="user-email" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Nombre</label><input id="user-nombre" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
-            '<div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Rol</label><select id="user-rol" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="consulta">Consulta</option><option value="gestor">Gestor</option><option value="admin">Administrador</option></select></div>' +
+            '<div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Rol</label><select id="user-rol" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="personal">Personal</option><option value="recursos">Recursos Humanos</option><option value="capacitacion">Capacitación</option><option value="gestion">Gestión</option></select></div>' +
             '<div style="display:flex;gap:12px;margin-top:20px">' +
             '<button onclick="closeModal(\'modal-usuario\')" style="flex:1;padding:12px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cancelar</button>' +
             '<button onclick="guardarUsuario()" style="flex:1;padding:12px;border-radius:8px;border:none;background:' + C.blue + ';color:#fff;cursor:pointer;font-weight:700">Guardar</button>' +
@@ -905,19 +929,20 @@ document.body.onload = function() {
     var userEmail = sessionStorage.getItem("userEmail");
     var userName = sessionStorage.getItem("userName") || "";
     
-    // Auto-crear primer admin si no existe nadie
+    // Auto-crear primer gestión si no existe nadie
     if (userEmail && getUsuarios().length === 0 && userEmail.indexOf("@") !== -1) {
-        addUsuario(userEmail, ROLES.ADMIN, userName);
+        addUsuario(userEmail, ROLES.GESTION, userName);
     }
     
     var showAdmin = puedeAdmin();
+    var usu = getUsuarioByEmail(userEmail) || {};
     
     document.getElementById("root").innerHTML = 
         '<nav style="background:' + C.navy + ';padding:16px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;flex-wrap:wrap">' +
         '<div style="font-size:20px;font-weight:900;color:#fff">CAP</div>' +
         '<button class="nav-btn" id="btn-dashboard" onclick="setView(\'dashboard\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Inicio</button>' +
-        '<button class="nav-btn" id="btn-personal" onclick="setView(\'personal\')" style="background:transparent;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Personal</button>' +
-        '<button class="nav-btn" id="btn-capacitaciones" onclick="setView(\'capacitaciones\')" style="background:transparent;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Capacitaciones</button>' +
+        (usu.rol === ROLES.PERSONAL || usu.rol === ROLES.RECURSOS || usu.rol === ROLES.GESTION ? '<button class="nav-btn" id="btn-personal" onclick="setView(\'personal\')" style="background:transparent;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Personal</button>' : '') +
+        (usu.rol === ROLES.CAPACITACION || usu.rol === ROLES.RECURSOS || usu.rol === ROLES.GESTION ? '<button class="nav-btn" id="btn-capacitaciones" onclick="setView(\'capacitaciones\')" style="background:transparent;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Capacitaciones</button>' : '') +
         (showAdmin ? '<button class="nav-btn" id="btn-admin" onclick="setView(\'admin\')" style="background:transparent;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer">Admin</button>' : '') +
         '<div style="margin-left:auto;display:flex;align-items:center;gap:8px">' +
         '<span style="font-size:12px;color:rgba(255,255,255,0.7)">' + (userName || userEmail) + '</span>' +
