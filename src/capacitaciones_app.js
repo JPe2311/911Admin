@@ -273,6 +273,7 @@ function getJerarquiasDB(personal) {
 // ============================================
 async function importarPersonalCSVDB(content) {
     var lines = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+    var estruct = await getEstructuraDB();
     var imported = [];
     lines.forEach((line, i) => {
         if (!line.trim()) return;
@@ -281,12 +282,24 @@ async function importarPersonalCSVDB(content) {
         if (cols.length < 2 || !cols[0]) return;
         var dni = cols[0].replace(/[^0-9]/g, "");
         if (dni.length < 7) return;
+        
+        var depInput = cols[3] || "";
+        var depId = depInput;
+        if (depInput) {
+            var found = estruct.find(e => e.nombre.toLowerCase() === depInput.toLowerCase() || e.id.toLowerCase() === depInput.toLowerCase());
+            if (found) depId = found.id;
+            else if (! estrut.find(e => e.id === depInput)) depId = depInput;
+        }
+        
         imported.push({ 
             dni: dni, 
             nombre: cols[1] || "", 
             jerarquia: cols[2] || "", 
-            escalafon: cols[4] || "", 
-            dependencia: cols[3] || "" 
+            dependencia: depId,
+            escalafon: cols[4] || "",
+            telefono: cols[5] || "",
+            email: cols[6] || "",
+            direccion: cols[7] || ""
         });
     });
     var agregados = 0, actualizados = 0;
@@ -979,8 +992,8 @@ function dropCSV(e) {
 
 async function exportarPersonal() {
     var pers = await getPersonalDB();
-    var rows = pers.map(p => [p.dni, p.nombre, p.jerarquia, p.dependencia, p.escalafon || ""].join(";"));
-    var csv = "DNI;Nombre;Jerarquia;Dependencia;Escalafon\n" + rows.join("\n");
+    var rows = pers.map(p => [p.dni, p.nombre, p.jerarquia, p.dependencia, p.escalafon || "", p.telefono || "", p.email || "", p.direccion || ""].join(";"));
+    var csv = "DNI;Nombre;Jerarquia;Dependencia;Escalafon;Telefono;Email;Direccion\n" + rows.join("\n");
     var blob = new Blob([csv], { type: "text/csv" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
