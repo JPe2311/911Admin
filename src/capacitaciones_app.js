@@ -735,9 +735,12 @@ async function guardarEmpleado() {
     alert("Empleado guardado");
 }
 
-function openModalCapacitacion() {
+async function openModalCapacitacion() {
     var m = document.getElementById("modal-cap");
     if (!m) {
+        var pers = await getPersonalDB();
+        var optsPersonal = pers.map(p => '<option value="' + p.dni + '|' + p.nombre + '">' + p.nombre + '</option>').join("");
+        
         m = document.createElement("div");
         m.id = "modal-cap";
         m.style = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000";
@@ -748,8 +751,7 @@ function openModalCapacitacion() {
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Modalidad</label><select id="cap-modalidad" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="presencial">Presencial</option><option value="virtual">Virtual</option><option value="mixta">Mixta</option></select></div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Fecha Inicio</label><input id="cap-fecha-inicio" type="date" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Fecha Fin</label><input id="cap-fecha-fin" type="date" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div></div>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Estado</label><select id="cap-estado" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="abierta">Abierta</option><option value="en curso">En Curso</option><option value="cerrada">Cerrada</option></select></div>' +
-            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Dictado Por (Interno)</label><select id="cap-dictado-por" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' +
-            (await getPersonalDB()).map(p => '<option value="' + p.dni + '|' + p.nombre + '">' + p.nombre + '</option>').join("") + '</select></div>' +
+            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Dictado Por (Interno)</label><select id="cap-dictado-por" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' + optsPersonal + '</select></div>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Dictado Por (Externo)</label><input id="cap-dictado-externo" placeholder="Nombre del capacitador externo" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
             '<div style="display:flex;gap:12px;margin-top:20px">' +
             '<button onclick="closeModal(\'modal-cap\')" style="flex:1;padding:12px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cancelar</button>' +
