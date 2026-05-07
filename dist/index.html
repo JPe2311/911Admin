@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GESTIÓN Y CALIDAD — Sistema de Informes</title>
+  <link rel="icon" type="image/png" href="/assets/favicon-CcUYKYO5.png" />
+
+  <!-- React + ReactDOM -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <!-- Babel standalone for JSX -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <!-- Firebase: inicialización (ESM module) -->
+  <!-- firebase-config.js inyecta window.FIREBASE_CONFIG (generado por build.sh en Vercel) -->
+  <script src="src/firebase-config.js" onerror="console.warn('firebase-config.js no encontrado — modo sin Firebase')"></script>
+
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f0f4f8; color: #1e293b; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 99px; }
+    canvas { max-width: 100%; }
+    .print-only { display: none !important; }
+    @media print {
+      .print-only { display: block !important; }
+      .print-flex { display: flex !important; }
+      .no-print { display: none !important; }
+      body { background: white; }
+      .card { break-inside: avoid; }
+    }
+    .animate-fade { animation: fadeIn 0.3s ease-out; }
+    .animate-slide-down { animation: slideDown 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    .hover-row:hover { background-color: #f1f5f9 !important; }
+  </style>
+  <script type="module" crossorigin src="/assets/index-C5OPARJD.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" src="src/app.jsx" charset="UTF-8" data-presets="react"></script>
+</body>
+</html>
