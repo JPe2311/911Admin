@@ -1,4 +1,4 @@
-// SISTEMA DE CAPACITACIONES 911 - ADMIN CON FIREBASE
+// SISTEMA DE CAPACITACIONES 911 - ADMIN CON FIREBASE v2
 var C = { navy: "#0f2444", blue: "#1B3A6B", mid: "#2E5FA3", light: "#D6E4F0", green: "#16a34a", greenBg: "#D1FAE5", red: "#dc2626", redBg: "#FEE2E2", gray: "#64748b", border: "#e2e8f0", bg: "#f0f4f8", card: "#ffffff", orange: "#ea580c" };
 
 var db = null;
