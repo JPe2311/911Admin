@@ -105,7 +105,7 @@ async function addOrUpdatePersonalDB(emp) {
 }
 
 async function deletePersonalDB(dni) {
-    await deleteDocById('personal', dni);
+    await saveDoc('personal', dni, { estado: "baja", updatedAt: new Date().toISOString() });
 }
 
 async function getCapacitacionesDelEmpleadoDB(dni) {
@@ -505,6 +505,8 @@ async function renderPersonal(container) {
     nivel4.forEach(e => { filterDiv += '<option value="' + e.id + '">' + e.nombre + '</option>'; });
     filterDiv += '</select>';
     
+    var filterEstado = '<select id="filtro-estado" onchange="filtrarPersonal()" style="padding:10px;border-radius:8px;border:1px solid ' + C.border + ';width:100%"><option value="">Todos los Estados</option><option value="activo">Activos</option><option value="baja">De Baja</option></select>';
+    
     var html = '<div style="padding:20">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:24px;align-items:center">' +
         '<div><h1 style="font-size:28px;font-weight:950;color:' + C.navy + '">Personal</h1><div style="font-size:13px;color:' + C.gray + '">' + pers.length + ' empleados</div></div>' +
@@ -520,10 +522,11 @@ async function renderPersonal(container) {
         '<div style="font-size:12px;color:' + C.gray + '">Arrastrá archivo CSV o hacé clic para importar</div>' +
         '</div>' +
         
-        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px">' +
         '<div><input type="text" id="buscar-nombre" placeholder="Buscar por nombre..." onkeyup="filtrarPersonal()" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
         '<div>' + filterJer + '</div>' +
         '<div>' + filterDiv + '</div>' +
+        '<div>' + filterEstado + '</div>' +
         '</div>' +
         
         '<div style="background:' + C.card + ';border-radius:14px;overflow:hidden;max-height:60vh;overflow-y:auto">' +
@@ -533,7 +536,9 @@ async function renderPersonal(container) {
     
     for (var p of pers.slice(0, 50)) {
         var capsCount = (await getCapacitacionesDelEmpleadoDB(p.dni)).length;
-        html += '<tr style="border-bottom:1px solid ' + C.border + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + p.nombre + '</a></td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + (p.escalafon||"-") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px"><span style="background:' + (capsCount > 0 ? C.greenBg : C.bg) + ';padding:4px 8px;border-radius:4px;font-size:11px;color:' + (capsCount > 0 ? C.green : C.gray) + '">' + capsCount + '</span></td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver Perfil</button></td></tr>';
+        var isBaja = p.estado === "baja";
+        var rowStyle = isBaja ? 'background:#fef2f2' : '';
+        html += '<tr style="border-bottom:1px solid ' + C.border + ';' + rowStyle + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600' + (isBaja ? ';color:' + C.gray : '') + '"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + p.nombre + '</a></td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + (p.escalafon||"-") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px"><span style="background:' + (capsCount > 0 ? C.greenBg : C.bg) + ';padding:4px 8px;border-radius:4px;font-size:11px;color:' + (capsCount > 0 ? C.green : C.gray) + '">' + capsCount + '</span></td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver</button></td></tr>';
     }
     
     html += '</tbody></table></div></div>';
@@ -545,6 +550,7 @@ async function filtrarPersonal() {
     var nombre = document.getElementById("buscar-nombre").value.toLowerCase();
     var jer = document.getElementById("filtro-jer").value;
     var div = document.getElementById("filtro-div").value;
+    var estado = document.getElementById("filtro-estado").value;
     
     var pers = await getPersonalDB();
     var estruct = await getEstructuraDB();
@@ -552,10 +558,15 @@ async function filtrarPersonal() {
         if (nombre && p.nombre.toLowerCase().indexOf(nombre) === -1) return false;
         if (jer && p.jerarquia !== jer) return false;
         if (div && p.dependencia !== div) return false;
+        if (estado && p.estado !== estado) return false;
         return true;
     });
     
-    var html = filtrado.slice(0, 50).map(p => '<tr style="border-bottom:1px solid ' + C.border + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + p.nombre + '</a></td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px">-</td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver Perfil</button></td></tr>').join("");
+    var html = filtrado.slice(0, 50).map(p => {
+        var isBaja = p.estado === "baja";
+        var rowStyle = isBaja ? 'background:#fef2f2' : '';
+        return '<tr style="border-bottom:1px solid ' + C.border + ';' + rowStyle + '"><td style="padding:12px;font-family:monospace">' + p.dni + '</td><td style="padding:12px;font-weight:600' + (isBaja ? ';color:' + C.gray : '') + '"><a href="#" onclick="verPerfil(\'' + p.dni + '\')" style="color:' + C.navy + ';text-decoration:none">' + p.nombre + '</a></td><td style="padding:12px">' + (p.jerarquia||"") + '</td><td style="padding:12px">' + (p.escalafon||"-") + '</td><td style="padding:12px">' + getNombrePorIdDB(p.dependencia, estruct) + '</td><td style="padding:12px">-</td><td style="padding:12px;text-align:right"><button onclick="verPerfil(\'' + p.dni + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Ver</button></td></tr>';
+    }).join("");
     
     var tbody = document.getElementById("tabla-personal");
     if (tbody) tbody.innerHTML = html;
@@ -586,15 +597,19 @@ async function renderCapacitaciones(container) {
         html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:16px">';
         for (var cap of caps) {
             var cant = asists.filter(a => a.capacitacionId === cap.id).length;
+            var estadoColor = cap.estado === "cerrada" ? C.gray : (cap.estado === "en curso" ? C.orange : C.green);
+            var dictadorTxt = cap.dictador ? (cap.dictador.externo ? cap.dictador.externo : cap.dictador.nombre) : "No especificado";
             html += '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + '">' +
                 '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
                 '<div style="flex:1"><h3 style="font-size:16px;font-weight:900;color:' + C.navy + '">' + cap.titulo + '</h3>' +
                 '<div style="font-size:12px;color:' + C.mid + ';margin-top:4px">' + (cap.temaPrincipal||"") + '</div></div>' +
-                '<span style="background:' + (cap.tipo === "multiple" ? C.orange : C.green) + ';color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:700">' + (cap.tipo === "multiple" ? "MÚLTIPLE" : "ÚNICA") + '</span></div>' +
-                '<div style="font-size:12px;color:' + C.gray + ';margin-top:12px">' + 
-                '<span style="background:' + C.light + ';padding:4px 8px;border-radius:4px;margin-right:8px">' + (cap.fechaDictado||"") + '</span>' +
-                '<span style="background:' + C.greenBg + ';padding:4px 8px;border-radius:4px;color:' + C.green + ';font-weight:700">' + cant + ' asistentes</span></div>' +
-                '<div style="margin-top:12px"><button onclick="verCapacitacion(\'' + cap.id + '\')" style="width:100%;background:' + C.mid + ';color:#fff;border:none;border-radius:6px;padding:10px;font-size:12px;cursor:pointer">Ver Detalle</button></div></div>';
+                '<span style="background:' + (cap.modalidad === "virtual" ? C.blue : C.orange) + ';color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:700">' + (cap.modalidad === "virtual" ? "VIRTUAL" : (cap.modalidad === "mixta" ? "MIXTA" : "PRESENCIAL")) + '</span></div>' +
+                '<div style="font-size:11px;color:' + C.gray + ';margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' + 
+                '<span style="background:' + C.light + ';padding:3px 6px;border-radius:4px">📅 ' + (cap.fechaInicio||"") + '</span>' +
+                (cap.fechaFin ? '<span style="background:' + C.light + ';padding:3px 6px;border-radius:4px">→ ' + cap.fechaFin + '</span>' : '') +
+                '<span style="background:' + estadoColor + ';color:#fff;padding:3px 6px;border-radius:4px;font-weight:700">' + (cap.estado === "cerrada" ? "CERRADA" : (cap.estado === "en curso" ? "EN CURSO" : "ABIERTA")) + '</span></div>' +
+                '<div style="font-size:11px;color:' + C.gray + ';margin-top:8px">👤 ' + dictadorTxt + '</div>' +
+                '<div style="margin-top:12px"><button onclick="verCapacitacion(\'' + cap.id + '\')" style="width:100%;background:' + C.mid + ';color:#fff;border:none;border-radius:6px;padding:10px;font-size:12px;cursor:pointer">Ver Detalle (' + cant + ')</button></div></div>';
         }
         html += '</div>';
     }
@@ -622,6 +637,12 @@ async function verPerfil(dni) {
     
     window.perfilDniActual = dni;
     
+    var estadoColor = emp.estado === "baja" ? C.red : C.green;
+    var estadoLabel = emp.estado === "baja" ? "BAJA" : "ACTIVO";
+    var btnAccion = tieneAccesoDB("personal") ? (emp.estado === "baja" ? 
+        '<button onclick="darAlta(\'' + dni + '\')" style="background:' + C.green + ';color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;margin-right:8px">Dar de Alta</button>' :
+        '<button onclick="darBaja(\'' + dni + '\')" style="background:' + C.orange + ';color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;margin-right:8px">Dar de Baja</button>') : '';
+    
     var html = '<div style="background:' + C.navy + ';padding:24px 32px;border-radius:16px 16px 0 0;color:#fff">' +
         '<h2 style="font-size:24px;font-weight:900;margin:0">' + emp.nombre + '</h2>' +
         '<div style="font-size:13px;opacity:0.8;margin-top:4px">' + emp.dni + ' • ' + (emp.jerarquia||"Sin jerarquía") + '</div>' +
@@ -629,7 +650,10 @@ async function verPerfil(dni) {
         
         '<div id="contenido-solapa" style="padding:24px;overflow-y:auto;flex:1"></div>' +
         
-        '<div style="padding:16px;border-top:1px solid ' + C.border + ';text-align:right"><button onclick="closeModal(\'modal-perfil\')" style="padding:10px 24px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cerrar</button></div>';
+        '<div style="padding:16px;border-top:1px solid ' + C.border + ';display:flex;justify-content:space-between;align-items:center">' +
+        '<div><span style="background:' + estadoColor + ';color:#fff;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700">' + estadoLabel + '</span></div>' +
+        '<div>' + btnAccion + '<button onclick="closeModal(\'modal-perfil\')" style="padding:10px 24px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cerrar</button></div>' +
+        '</div>';
     
     m.querySelector("div").innerHTML = html;
     m.style.display = "flex";
@@ -717,12 +741,16 @@ function openModalCapacitacion() {
         m = document.createElement("div");
         m.id = "modal-cap";
         m.style = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000";
-        m.innerHTML = '<div style="background:' + C.card + ';border-radius:16px;padding:32px;width:450px">' +
+        m.innerHTML = '<div style="background:' + C.card + ';border-radius:16px;padding:32px;width:450px;max-height:90vh;overflow-y:auto">' +
             '<h2 style="font-size:20px;font-weight:900;color:' + C.navy + ';margin-bottom:20px">Nueva Capacitación</h2>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Título *</label><input id="cap-titulo" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Tema Principal</label><input id="cap-tema" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
-            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Fecha *</label><input id="cap-fecha" type="date" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
-            '<div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Tipo</label><select id="cap-tipo" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="unica">Clase única</option><option value="multiple">Curso de múltiples clases</option></select></div>' +
+            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Modalidad</label><select id="cap-modalidad" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="presencial">Presencial</option><option value="virtual">Virtual</option><option value="mixta">Mixta</option></select></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Fecha Inicio</label><input id="cap-fecha-inicio" type="date" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Fecha Fin</label><input id="cap-fecha-fin" type="date" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div></div>' +
+            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Estado</label><select id="cap-estado" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="abierta">Abierta</option><option value="en curso">En Curso</option><option value="cerrada">Cerrada</option></select></div>' +
+            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Dictado Por (Interno)</label><select id="cap-dictado-por" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="">-- Seleccionar --</option>' +
+            (await getPersonalDB()).map(p => '<option value="' + p.dni + '|' + p.nombre + '">' + p.nombre + '</option>').join("") + '</select></div>' +
+            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Dictado Por (Externo)</label><input id="cap-dictado-externo" placeholder="Nombre del capacitador externo" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
             '<div style="display:flex;gap:12px;margin-top:20px">' +
             '<button onclick="closeModal(\'modal-cap\')" style="flex:1;padding:12px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cancelar</button>' +
             '<button onclick="guardarCapacitacion()" style="flex:1;padding:12px;border-radius:8px;border:none;background:' + C.blue + ';color:#fff;cursor:pointer;font-weight:700">Guardar</button>' +
@@ -735,14 +763,25 @@ function openModalCapacitacion() {
 
 async function guardarCapacitacion() {
     var titulo = document.getElementById("cap-titulo").value;
-    var fecha = document.getElementById("cap-fecha").value;
-    if (!titulo || !fecha) { alert("Título y Fecha son req."); return; }
+    var fechaInicio = document.getElementById("cap-fecha-inicio").value;
+    if (!titulo || !fechaInicio) { alert("Título y Fecha de Inicio son req."); return; }
+    
+    var modalidad = document.getElementById("cap-modalidad").value;
+    var fechaFin = document.getElementById("cap-fecha-fin").value;
+    var estado = document.getElementById("cap-estado").value;
+    var dictPor = document.getElementById("cap-dictado-por").value;
+    var dictExterno = document.getElementById("cap-dictado-externo").value;
+    
+    var dictador = dictExterno ? { externo: dictExterno } : (dictPor ? { dni: dictPor.split("|")[0], nombre: dictPor.split("|")[1] } : null);
     
     await addCapacitacionDB({
         titulo,
         temaPrincipal: document.getElementById("cap-tema").value,
-        fechaDictado: fecha,
-        tipo: document.getElementById("cap-tipo").value
+        modalidad,
+        fechaInicio,
+        fechaFin,
+        estado,
+        dictador
     });
     closeModal("modal-cap");
     renderCapacitaciones(document.getElementById("main"));
@@ -778,7 +817,19 @@ async function verCapacitacion(id) {
     
     window.capActualId = id;
     document.getElementById("cap-titulo-disp").textContent = cap.titulo;
-    document.getElementById("cap-info-disp").textContent = (cap.fechaDictado || "") + " • " + (cap.temaPrincipal || "") + " • " + asists.length + " asistentes";
+    
+    var estadoColor = cap.estado === "cerrada" ? C.gray : (cap.estado === "en curso" ? C.orange : C.green);
+    var dictadorTxt = cap.dictador ? (cap.dictador.externo ? cap.dictador.externo : cap.dictador.nombre) : "No especificado";
+    var modalidadTxt = cap.modalidad === "virtual" ? "Virtual" : (cap.modalidad === "mixta" ? "Mixta" : "Presencial");
+    document.getElementById("cap-info-disp").innerHTML = 
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+        '<span style="background:' + (cap.modalidad === "virtual" ? C.blue : C.orange) + ';color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:700">' + modalidadTxt + '</span>' +
+        '<span style="background:' + estadoColor + ';color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:700">' + (cap.estado === "cerrada" ? "CERRADA" : (cap.estado === "en curso" ? "EN CURSO" : "ABIERTA")) + '</span>' +
+        '</div>' +
+        '<div style="margin-bottom:4px">📅 ' + (cap.fechaInicio||"") + (cap.fechaFin ? ' → ' + cap.fechaFin : '') + '</div>' +
+        '<div style="margin-bottom:4px">👤 Dictado por: ' + dictadorTxt + '</div>' +
+        '<div>🎯 ' + (cap.temaPrincipal||"Sin tema") + '</div>' +
+        '<div style="margin-top:8px;font-weight:700;color:' + C.navy + '">' + asists.length + ' asistentes</div>';
     
     var botonesHtml = "";
     if (puedeEditar) {
@@ -1174,6 +1225,17 @@ window.guardarUsuario = guardarUsuario;
 window.eliminarUsuario = eliminarUsuario;
 window.editarEstructura = editarEstructura;
 window.eliminarEstructura = eliminarEstructura;
+window.darBaja = async function(dni) {
+    if (!confirm("¿Dar de baja a este empleado? podrá seguir apareciendo en búsquedas históricas.")) return;
+    await saveDoc('personal', dni, { estado: "baja", updatedAt: new Date().toISOString() });
+    verPerfil(dni);
+    renderPersonal(document.getElementById("main"));
+};
+window.darAlta = async function(dni) {
+    await saveDoc('personal', dni, { estado: "activo", updatedAt: new Date().toISOString() });
+    verPerfil(dni);
+    renderPersonal(document.getElementById("main"));
+};
 window.logout = logout;
 
 // Auto init
