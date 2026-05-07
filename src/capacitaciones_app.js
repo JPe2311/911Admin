@@ -100,6 +100,17 @@ async function addOrUpdatePersonalDB(emp) {
         data.createdAt = ahora;
         data.estado = "activo";
     }
+    if (emp.dependencia) {
+        var estruct = await getEstructuraDB();
+        var ruta = [];
+        var actual = emp.dependencia;
+        while (actual) {
+            var e = estruct.find(x => x.id === actual);
+            if (e) { ruta.unshift(e.id); actual = e.padre; }
+            else break;
+        }
+        data.rutaEstructura = ruta;
+    }
     await saveDoc('personal', emp.dni, data);
     return data;
 }
@@ -285,21 +296,33 @@ async function importarPersonalCSVDB(content) {
         var dni = cols[0].replace(/[^0-9]/g, "");
         if (dni.length < 7) return;
         
-        var depInput = cols[3] || "";
-        var depId = depInput;
-        // NOTE: Removed estruct lookup temporarily due to variable scope bug
+        var jerarquiasValidas = ["COMISARIO", "OFICIAL", "SUBOFICIAL", "SARGENTO", "CABO", "AGENTE", "CIVIL", "PERSONAL"];
+        var tieneApellido = cols[1] && !jerarquiasValidas.some(j => (cols[1] || "").toUpperCase().startsWith(j));
         
-        imported.push({ 
-            dni: dni, 
-            apellido: cols[1] || "", 
-            nombre: cols[2] || "",
-            jerarquia: cols[4] || "", 
-            dependencia: depId,
-            escalafon: cols[5] || "",
-            telefono: cols[6] || "",
-            email: cols[7] || "",
-            direccion: cols[8] || ""
-        });
+        if (tieneApellido) {
+            imported.push({ 
+                dni: dni, 
+                apellido: cols[1] || "", 
+                nombre: cols[2] || "",
+                jerarquia: cols[3] || "", 
+                dependencia: cols[4] || "",
+                escalafon: cols[5] || "",
+                telefono: cols[6] || "",
+                email: cols[7] || "",
+                direccion: cols[8] || ""
+            });
+        } else {
+            imported.push({ 
+                dni: dni, 
+                nombre: cols[1] || "", 
+                jerarquia: cols[2] || "", 
+                dependencia: cols[3] || "",
+                escalafon: cols[4] || "",
+                telefono: cols[5] || "",
+                email: cols[6] || "",
+                direccion: cols[7] || ""
+            });
+        }
     });
     var agregados = 0, actualizados = 0;
     var personal = await getPersonalDB();
@@ -507,7 +530,6 @@ async function renderPersonal(container) {
     
     var pers = await getPersonalDB();
     var estruct = await getEstructuraDB();
-    var nivel4 = estruct.filter(e => e.nivel === 4);
     var puedeEditar = tieneAccesoDB("personal");
     
     var filterJer = '<select id="filtro-jer" onchange="filtrarPersonal()" style="padding:10px;border-radius:8px;border:1px solid ' + C.border + ';width:100%"><option value="">Todas las Jerarquías</option>';
@@ -515,8 +537,8 @@ async function renderPersonal(container) {
     jerarquias.forEach(j => { filterJer += '<option value="' + j + '">' + j + '</option>'; });
     filterJer += '</select>';
     
-    var filterDiv = '<select id="filtro-div" onchange="filtrarPersonal()" style="padding:10px;border-radius:8px;border:1px solid ' + C.border + ';width:100%"><option value="">Todas las Divisiones</option>';
-    nivel4.forEach(e => { filterDiv += '<option value="' + e.id + '">' + e.nombre + '</option>'; });
+    var filterDiv = '<select id="filtro-div" onchange="filtrarPersonal()" style="padding:10px;border-radius:8px;border:1px solid ' + C.border + ';width:100%"><option value="">Todas las Áreas</option>';
+    estruct.forEach(e => { filterDiv += '<option value="' + e.id + '">' + "  ".repeat(e.nivel - 1) + (e.nivel === 1 ? "" : "└ ") + e.nombre + '</option>'; });
     filterDiv += '</select>';
     
     var filterEstado = '<select id="filtro-estado" onchange="filtrarPersonal()" style="padding:10px;border-radius:8px;border:1px solid ' + C.border + ';width:100%"><option value="">Todos los Estados</option><option value="activo">Activos</option><option value="baja">De Baja</option></select>';
@@ -575,7 +597,10 @@ async function filtrarPersonal() {
             if (searchText.indexOf(nombre) === -1) return false;
         }
         if (jer && p.jerarquia !== jer) return false;
-        if (div && p.dependencia !== div) return false;
+        if (div) {
+            var ruta = p.rutaEstructura || [];
+            if (!ruta.includes(div) && p.dependencia !== div) return false;
+        }
         if (estado && p.estado !== estado) return false;
         return true;
     });
