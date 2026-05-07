@@ -224,6 +224,17 @@ async function getEstructuraDB() {
     return list;
 }
 
+async function addEstructuraDB(id, nombre, nivel, padre) {
+    await saveDoc('estructura', id, { id, nombre, nivel, padre });
+}
+
+async function deleteEstructuraDB(id) {
+    var list = await getCollection('estructura');
+    var hijos = list.filter(e => e.padre === id);
+    for (var h of hijos) await deleteEstructuraDB(h.id);
+    await deleteDocById('estructura', id);
+}
+
 function getNombrePorIdDB(id, estructura) {
     var e = estructura.find(x => x.id === id);
     return e ? e.nombre : (id || "");
@@ -707,13 +718,18 @@ async function renderAdmin(container) {
     }
     
     var usuarios = await getUsuariosDB();
+    var estructura = await getEstructuraDB();
     var userEmail = sessionStorage.getItem("userEmail");
     var userName = sessionStorage.getItem("userName") || userEmail;
     
     var html = '<div style="padding:20">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:24px;align-items:center">' +
-        '<div><h1 style="font-size:28px;font-weight:950;color:' + C.navy + '">Administración</h1><div style="font-size:13px;color:' + C.gray + '">Gestión de usuarios</div></div>' +
-        '<button onclick="openModalUsuario()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">➕ Agregar Usuario</button>' +
+        '<div><h1 style="font-size:28px;font-weight:950;color:' + C.navy + '">Administración</h1></div>' +
+        '</div>' +
+        
+        '<div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid ' + C.border + ';padding-bottom:8px">' +
+        '<button onclick="renderAdminUsuarios()" id="tab-usuarios" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">Usuarios</button>' +
+        '<button onclick="renderAdminEstructura()" id="tab-estructura" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">Estructura Organizacional</button>' +
         '</div>' +
         
         '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + ';margin-bottom:20px">' +
@@ -724,8 +740,28 @@ async function renderAdmin(container) {
         '</div>' +
         '</div>' +
         
+        '<div id="admin-contenido"></div>';
+    
+    html += '</div>';
+    container.innerHTML = html;
+    renderAdminUsuarios();
+}
+
+async function renderAdminUsuarios() {
+    document.getElementById("tab-usuarios").style.background = C.blue;
+    document.getElementById("tab-usuarios").style.color = "#fff";
+    document.getElementById("tab-estructura").style.background = C.bg;
+    document.getElementById("tab-estructura").style.color = C.navy;
+    
+    var usuarios = await getUsuariosDB();
+    var div = document.getElementById("admin-contenido");
+    
+    var html = '<div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:center">' +
+        '<div style="font-size:16px;font-weight:700;color:' + C.navy + '">Usuarios Autorizados (' + usuarios.length + ')</div>' +
+        '<button onclick="openModalUsuario()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">➕ Agregar Usuario</button>' +
+        '</div>' +
+        
         '<div style="background:' + C.card + ';border-radius:14px;overflow:hidden">' +
-        '<div style="padding:16px;border-bottom:1px solid ' + C.border + ';font-size:12px;color:' + C.gray + '">USUARIOS AUTORIZADOS (' + usuarios.length + ')</div>' +
         '<table style="width:100%;border-collapse:collapse">' +
         '<thead><tr style="background:' + C.bg + '"><th style="padding:12px;text-align:left;font-size:11px">Email</th><th style="padding:12px;text-align:left;font-size:11px">Nombre</th><th style="padding:12px;text-align:left;font-size:11px">Rol</th><th style="padding:12px;text-align:left;font-size:11px">Acceso</th><th style="padding:12px;text-align:right;font-size:11px">Acción</th></tr></thead>' +
         '<tbody>';
@@ -746,8 +782,117 @@ async function renderAdmin(container) {
         }
     }
     
-    html += '</tbody></table></div></div>';
-    container.innerHTML = html;
+    html += '</tbody></table></div>';
+    div.innerHTML = html;
+}
+
+async function renderAdminEstructura() {
+    document.getElementById("tab-usuarios").style.background = C.bg;
+    document.getElementById("tab-usuarios").style.color = C.navy;
+    document.getElementById("tab-estructura").style.background = C.blue;
+    document.getElementById("tab-estructura").style.color = "#fff";
+    
+    var estructura = await getEstructuraDB();
+    var div = document.getElementById("admin-contenido");
+    
+    var nivelLabels = ["", "Dirección", "Departamento", "División"];
+    
+    var html = '<div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:center">' +
+        '<div style="font-size:16px;font-weight:700;color:' + C.navy + '">Estructura Organizacional (' + estructura.length + ')</div>' +
+        '<button onclick="openModalEstructura()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">➕ Agregar Área</button>' +
+        '</div>' +
+        
+        '<div style="background:' + C.card + ';border-radius:14px;padding:16px">';
+    
+    for (var nivel = 1; nivel <= 4; nivel++) {
+        var items = estructura.filter(e => e.nivel === nivel).sort((a, b) => a.nombre.localeCompare(b.nombre));
+        if (items.length === 0) continue;
+        
+        html += '<div style="font-size:12px;font-weight:700;color:' + C.gray + ';margin-top:' + (nivel > 1 ? '16px' : '0') + ';margin-bottom:8px">' + nivelLabels[nivel] + 'S</div>';
+        
+        for (var e of items) {
+            var padding = (nivel - 1) * 20;
+            var nombrePadre = e.padre ? getNombrePorIdDB(e.padre, estructura) : "raíz";
+            html += '<div style="display:flex;align-items:center;padding:8px 12px;background:' + C.bg + ';border-radius:8px;margin-bottom:4px;margin-left:' + padding + 'px">' +
+                '<div style="flex:1;font-weight:600">' + e.nombre + '</div>' +
+                '<div style="font-size:11px;color:' + C.gray + ';margin-right:12px">Padre: ' + nombrePadre + '</div>' +
+                '<button onclick="editarEstructura(\'' + e.id + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:10px;cursor:pointer;margin-right:4px">Editar</button>' +
+                '<button onclick="eliminarEstructura(\'' + e.id + '\')" style="background:' + C.red + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:10px;cursor:pointer">Eliminar</button>' +
+                '</div>';
+        }
+    }
+    
+    html += '</div>';
+    div.innerHTML = html;
+}
+
+async function openModalEstructura(editarId) {
+    var m = document.getElementById("modal-estructura");
+    var items = await getEstructuraDB();
+    
+    var optsPadre = '<option value="">-- Raíz --</option>';
+    items.forEach(e => { optsPadre += '<option value="' + e.id + '">' + e.nombre + '</option>'; });
+    
+    var optsNivel = '<option value="1">Dirección</option><option value="2">Departamento</option><option value="3">División</option><option value="4">Área</option>';
+    
+    var titulo = editarId ? "Editar Área" : "Agregar Área";
+    var nombreVal = "";
+    var nivelVal = 1;
+    var padreVal = "";
+    
+    if (editarId) {
+        var e = items.find(x => x.id === editarId);
+        if (e) { nombreVal = e.nombre; nivelVal = e.nivel; padreVal = e.padre; }
+    }
+        var e = items.find(x => x.id === editarId);
+        if (e) { nombreVal = e.nombre; nivelVal = e.nivel; padreVal = e.padre; }
+    }
+    
+    if (!m) {
+        m = document.createElement("div");
+        m.id = "modal-estructura";
+    }
+    m.style = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000";
+    m.innerHTML = '<div style="background:' + C.card + ';border-radius:16px;padding:32px;width:400px">' +
+        '<h2 style="font-size:20px;font-weight:900;color:' + C.navy + ';margin-bottom:20px">' + titulo + '</h2>' +
+        '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Nombre *</label><input id="est-nombre" value="' + nombreVal + '" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
+        '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Nivel</label><select id="est-nivel" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '">' + optsNivel + '</select></div>' +
+        '<div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Pertenece a</label><select id="est-padre" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '">' + optsPadre + '</select></div>' +
+        '<div style="display:flex;gap:12px;margin-top:20px">' +
+        '<button onclick="closeModal(\'modal-estructura\')" style="flex:1;padding:12px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cancelar</button>' +
+        '<button onclick="guardarEstructura(\'' + (editarId||'') + '\')" style="flex:1;padding:12px;border-radius:8px;border:none;background:' + C.blue + ';color:#fff;cursor:pointer;font-weight:700">Guardar</button>' +
+        '</div></div>';
+    document.body.appendChild(m);
+    m.style.display = "flex";
+    
+    if (editarId) {
+        document.getElementById("est-nivel").value = nivelVal;
+        document.getElementById("est-padre").value = padreVal;
+    }
+}
+
+async function guardarEstructura(editarId) {
+    var nombre = document.getElementById("est-nombre").value.trim();
+    var nivel = parseInt(document.getElementById("est-nivel").value);
+    var padre = document.getElementById("est-padre").value;
+    
+    if (!nombre) { alert("Nombre es requerido"); return; }
+    
+    var id = editarId || nombre.toLowerCase().replace(/[^a-z0-9]/g, "").replace(/\s+/g, "-").substring(0, 20) + "_" + Date.now().toString(36);
+    
+    await addEstructuraDB(id, nombre, nivel, padre);
+    closeModal("modal-estructura");
+    renderAdminEstructura();
+}
+
+async function editarEstructura(id) {
+    openModalEstructura(id);
+}
+
+async function eliminarEstructura(id) {
+    if (!confirm("Eliminar esta área y todas sus subáreas?")) return;
+    await deleteEstructuraDB(id);
+    renderAdminEstructura();
 }
 
 function openModalUsuario() {
@@ -871,6 +1016,8 @@ window.guardarCapacitacion = guardarCapacitacion;
 window.openModalUsuario = openModalUsuario;
 window.guardarUsuario = guardarUsuario;
 window.eliminarUsuario = eliminarUsuario;
+window.editarEstructura = editarEstructura;
+window.eliminarEstructura = eliminarEstructura;
 window.logout = logout;
 
 // Auto init
