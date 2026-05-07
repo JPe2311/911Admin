@@ -122,11 +122,24 @@ async function deletePersonalDB(dni) {
 async function getCapacitacionesDelEmpleadoDB(dni) {
     var asists = await getCollection('asistencias');
     var caps = await getCollection('capacitaciones');
+    var cats = await getCategoriasDB();
     return asists
         .filter(a => a.dni === dni)
         .map(a => {
             var cap = caps.find(c => c.id === a.capacitacionId);
-            return cap ? { id: cap.id, titulo: cap.titulo, tema: cap.temaPrincipal, fecha: cap.fechaDictado, tipo: cap.tipo, presente: a.presente } : null;
+            if (!cap) return null;
+            var catNombres = (cap.categorias || []).map(cid => {
+                var c = cats.find(x => x.id === cid);
+                return c ? c.nombre : "";
+            }).filter(Boolean);
+            return { 
+                id: cap.id, titulo: cap.titulo, 
+                tema: cap.temaPrincipal, 
+                fecha: cap.fechaInicio, 
+                fechaFin: cap.fechaFin,
+                estado: cap.estado,
+                categorias: catNombres 
+            };
         })
         .filter(Boolean)
         .sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
@@ -657,6 +670,7 @@ async function renderCapacitaciones(container) {
                 (cap.fechaFin ? '<span style="background:' + C.light + ';padding:3px 6px;border-radius:4px">→ ' + cap.fechaFin + '</span>' : '') +
                 '<span style="background:' + estadoColor + ';color:#fff;padding:3px 6px;border-radius:4px;font-weight:700">' + (cap.estado === "cerrada" ? "CERRADA" : (cap.estado === "en curso" ? "EN CURSO" : "ABIERTA")) + '</span></div>' +
                 '<div style="font-size:11px;color:' + C.gray + ';margin-top:8px">👤 ' + dictadorTxt + '</div>' +
+                (cap.categorias && cap.categorias.length ? '<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">' + cap.categorias.map(cid => '<span style="background:' + C.green + ';color:#fff;padding:2px 8px;border-radius:4px;font-size:10px">' + cid + '</span>').join("") + '</div>' : '') +
                 '<div style="margin-top:12px"><button onclick="verCapacitacion(\'' + cap.id + '\')" style="width:100%;background:' + C.mid + ';color:#fff;border:none;border-radius:6px;padding:10px;font-size:12px;cursor:pointer">Ver Detalle (' + cant + ')</button></div></div>';
         }
         html += '</div>';
@@ -782,7 +796,8 @@ async function verPerfil(dni) {
         htmlPerfil += '<div style="color:' + C.gray + ';text-align:center;padding:20px">Sin capacitaciones</div>';
     } else {
         caps.forEach(c => {
-            htmlPerfil += '<div style="padding:8px;border-bottom:1px solid ' + C.border + '"><div style="font-weight:600">' + c.titulo + '</div><div style="font-size:11px;color:' + C.gray + '">' + (c.fechaInicio || "") + (c.estado ? ' • ' + c.estado : '') + '</div></div>';
+            var catsHtml = c.categorias && c.categorias.length ? '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">' + c.categorias.map(cat => '<span style="background:' + C.green + ';color:#fff;padding:2px 6px;border-radius:4px;font-size:10px">' + cat + '</span>').join("") + '</div>' : '';
+            htmlPerfil += '<div style="padding:8px;border-bottom:1px solid ' + C.border + '"><div style="font-weight:600">' + c.titulo + '</div><div style="font-size:11px;color:' + C.gray + '">' + (c.fecha || "") + (c.estado ? ' • ' + c.estado : '') + '</div>' + catsHtml + '</div>';
         });
     }
     htmlPerfil += '</div></div></div>';
@@ -868,7 +883,9 @@ async function openModalCapacitacion() {
     var m = document.getElementById("modal-cap");
     if (!m) {
         var pers = await getPersonalDB();
+        var cats = await getCategoriasDB();
         var optsPersonal = pers.map(p => '<option value="' + p.dni + '|' + p.nombre + '">' + p.nombre + '</option>').join("");
+        var optsCategorias = cats.map(c => '<option value="' + c.id + '">' + c.nombre + '</option>').join("");
         
         m = document.createElement("div");
         m.id = "modal-cap";
@@ -876,6 +893,7 @@ async function openModalCapacitacion() {
         m.innerHTML = '<div style="background:' + C.card + ';border-radius:16px;padding:32px;width:450px;max-height:90vh;overflow-y:auto">' +
             '<h2 style="font-size:20px;font-weight:900;color:' + C.navy + ';margin-bottom:20px">Nueva Capacitación</h2>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Título *</label><input id="cap-titulo" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
+            '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Categorías</label><select id="cap-categorias" multiple style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + ';height:80px">' + optsCategorias + '</select>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Tema Principal</label><input id="cap-tema" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
             '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Modalidad</label><select id="cap-modalidad" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"><option value="presencial">Presencial</option><option value="virtual">Virtual</option><option value="mixta">Mixta</option></select></div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Fecha Inicio</label><input id="cap-fecha-inicio" type="date" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div><div><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Fecha Fin</label><input id="cap-fecha-fin" type="date" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div></div>' +
@@ -903,16 +921,20 @@ async function guardarCapacitacion() {
     var dictPor = document.getElementById("cap-dictado-por").value;
     var dictExterno = document.getElementById("cap-dictado-externo").value;
     
+    var catSelect = document.getElementById("cap-categorias");
+    var categorias = catSelect ? Array.from(catSelect.selectedOptions).map(o => o.value) : [];
+    
     var dictador = dictExterno ? { externo: dictExterno } : (dictPor ? { dni: dictPor.split("|")[0], nombre: dictPor.split("|")[1] } : null);
     
     await addCapacitacionDB({
         titulo,
         temaPrincipal: document.getElementById("cap-tema").value,
-        modalidad,
+        modalidades: modalidad,
         fechaInicio,
         fechaFin,
         estado,
-        dictador
+        dictador,
+        categorias
     });
     closeModal("modal-cap");
     renderCapacitaciones(document.getElementById("main"));
@@ -960,6 +982,7 @@ async function verCapacitacion(id) {
         '<div style="margin-bottom:4px">📅 ' + (cap.fechaInicio||"") + (cap.fechaFin ? ' → ' + cap.fechaFin : '') + '</div>' +
         '<div style="margin-bottom:4px">👤 Dictado por: ' + dictadorTxt + '</div>' +
         '<div>🎯 ' + (cap.temaPrincipal||"Sin tema") + '</div>' +
+        (cap.categorias && cap.categorias.length ? '<div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">' + cap.categorias.map(cid => '<span style="background:' + C.green + ';color:#fff;padding:2px 8px;border-radius:4px;font-size:10px">' + cid + '</span>').join("") + '</div>' : '') +
         '<div style="margin-top:8px;font-weight:700;color:' + C.navy + '">' + asists.length + ' asistentes</div>';
     
     var botonesHtml = "";
@@ -1071,8 +1094,9 @@ async function renderAdmin(container) {
         '</div>' +
         
         '<div style="display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid ' + C.border + ';padding-bottom:8px">' +
-        '<button onclick="renderAdminUsuarios()" id="tab-usuarios" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">Usuarios</button>' +
-        '<button onclick="renderAdminEstructura()" id="tab-estructura" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">Estructura Organizacional</button>' +
+        '<button onclick="renderAdminUsuarios()" id="tab-usuarios" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">Usuarios</button>' +
+        '<button onclick="renderAdminEstructura()" id="tab-estructura" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">Estructura</button>' +
+        '<button onclick="renderAdminCategorias()" id="tab-categorias" style="background:' + C.bg + ';color:' + C.navy + ';border:1px solid ' + C.border + ';border-radius:8px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">Categorías</button>' +
         '</div>' +
         
         '<div style="background:' + C.card + ';border-radius:14px;padding:20px;border:1px solid ' + C.border + ';margin-bottom:20px">' +
@@ -1358,6 +1382,20 @@ window.guardarEmpleado = guardarEmpleado;
 window.openModalCapacitacion = openModalCapacitacion;
 window.guardarCapacitacion = guardarCapacitacion;
 window.openModalUsuario = openModalUsuario;
+window.renderAdminCategorias = renderAdminCategorias;
+window.renderAdminUsuarios = renderAdminUsuarios;
+window.renderAdminEstructura = renderAdminEstructura;
+
+function setActiveTab(tabId) {
+    ["tab-usuarios", "tab-estructura", "tab-categorias"].forEach(id => {
+        var el = document.getElementById(id);
+        if (el) {
+            el.style.background = (id === tabId) ? C.blue : C.bg;
+            el.style.color = (id === tabId) ? "#fff" : C.navy;
+            el.style.border = C.border;
+        }
+    });
+}
 window.guardarUsuario = guardarUsuario;
 window.eliminarUsuario = eliminarUsuario;
 window.editarEstructura = editarEstructura;
@@ -1377,3 +1415,86 @@ window.logout = logout;
 
 // Auto init
 initApp();
+
+// ============================================
+// CATEGORIAS (TEMAS)
+// ============================================
+async function getCategoriasDB() { return await getCollection('categorias'); }
+
+async function guardarCategoriaDB(cat) {
+    await saveDoc('categorias', cat.id, cat);
+}
+
+async function renderAdminCategorias() {
+    setActiveTab("tab-categorias");
+    var cats = await getCategoriasDB();
+    var div = document.getElementById("admin-contenido");
+    
+    var html = '<div style="display:flex;justify-content:space-between;margin-bottom:16px;align-items:center">' +
+        '<div style="font-size:16px;font-weight:700;color:' + C.navy + '">Categorías / Temas (' + cats.length + ')</div>' +
+        '<button onclick="openModalCategoria()" style="background:' + C.blue + ';color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">➕ Agregar Categoría</button>' +
+        '</div>' +
+        '<div style="background:' + C.card + ';border-radius:14px;overflow:hidden">';
+    
+    if (cats.length === 0) {
+        html += '<div style="padding:40px;text-align:center;color:' + C.gray + '">No hay categorías. Agregá una para usar en las capacitaciones.</div>';
+    } else {
+        html += '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:' + C.bg + '"><th style="padding:12px;text-align:left;font-size:11px">Nombre</th><th style="padding:12px;text-align:left;font-size:11px">Descripción</th><th style="padding:12px;text-align:right;font-size:11px">Acción</th></tr></thead><tbody>';
+        cats.forEach(c => {
+            html += '<tr style="border-bottom:1px solid ' + C.border + '"><td style="padding:12px;font-weight:600">' + c.nombre + '</td><td style="padding:12px;color:' + C.gray + '">' + (c.descripcion || "-") + '</td><td style="padding:12px;text-align:right"><button onclick="openModalCategoria(\'' + c.id + '\')" style="background:' + C.mid + ';color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer">Editar</button></td></tr>';
+        });
+        html += '</tbody></table>';
+    }
+    html += '</div>';
+    div.innerHTML = html;
+}
+
+async function openModalCategoria(editarId) {
+    var m = document.getElementById("modal-categoria");
+    var items = await getCategoriasDB();
+    
+    var titulo = editarId ? "Editar Categoría" : "Agregar Categoría";
+    var nombreVal = "";
+    var descVal = "";
+    
+    if (editarId) {
+        var c = items.find(x => x.id === editarId);
+        if (c) { nombreVal = c.nombre; descVal = c.descripcion || ""; }
+    }
+    
+    if (!m) {
+        m = document.createElement("div");
+        m.id = "modal-categoria";
+    }
+    m.style = "position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000";
+    m.innerHTML = '<div style="background:' + C.card + ';border-radius:16px;padding:32px;width:400px">' +
+        '<h2 style="font-size:20px;font-weight:900;color:' + C.navy + ';margin-bottom:20px">' + titulo + '</h2>' +
+        '<div style="margin-bottom:16px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Nombre *</label><input id="cat-nombre" value="' + nombreVal + '" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + '"></div>' +
+        '<div style="margin-bottom:20px"><label style="display:block;font-size:11px;font-weight:700;color:' + C.navy + ';margin-bottom:6">Descripción</label><textarea id="cat-descripcion" style="width:100%;padding:10px;border-radius:8px;border:1px solid ' + C.border + ';height:80px;resize:none">' + descVal + '</textarea></div>' +
+        '<div style="display:flex;gap:12px;margin-top:20px">' +
+        (editarId ? '<button onclick="eliminarCategoria(\'' + editarId + '\')" style="flex:1;padding:12px;border-radius:8px;border:1px solid ' + C.red + ';background:' + C.redBg + ';color:' + C.red + ';cursor:pointer;font-weight:700">Eliminar</button>' : '') +
+        '<button onclick="closeModal(\'modal-categoria\')" style="flex:1;padding:12px;border-radius:8px;border:1px solid ' + C.border + ';background:' + C.bg + ';cursor:pointer">Cancelar</button>' +
+        '<button onclick="guardarCategoria()" style="flex:1;padding:12px;border-radius:8px;border:none;background:' + C.blue + ';color:#fff;cursor:pointer;font-weight:700">Guardar</button>' +
+        '</div></div>';
+    document.body.appendChild(m);
+    m.style.display = "flex";
+}
+
+async function guardarCategoria() {
+    var nombre = document.getElementById("cat-nombre").value.trim();
+    var descripcion = document.getElementById("cat-descripcion").value.trim();
+    
+    if (!nombre) { alert("Nombre es requerido"); return; }
+    
+    var id = "CAT_" + Date.now().toString(36);
+    await guardarCategoriaDB({ id, nombre, descripcion });
+    closeModal("modal-categoria");
+    renderAdminCategorias();
+}
+
+async function eliminarCategoria(id) {
+    if (!confirm("¿Eliminar esta categoría?")) return;
+    await deleteDocById("categorias", id);
+    closeModal("modal-categoria");
+    renderAdminCategorias();
+}
