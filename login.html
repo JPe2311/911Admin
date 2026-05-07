@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login — SAE 911 Capacitaciones</title>
+  <title>Login — 911 Admin Gestión General</title>
   <link rel="icon" type="image/png" href="src/img/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,13 +35,21 @@
 
     .login-bg {
       min-height: 100vh;
-      background: 
-          linear-gradient(180deg, rgba(8,13,26,0.9) 0%, rgba(8,13,26,0.85) 100%),
-          url('src/img/dirlogo.png') center/cover no-repeat;
+      background: radial-gradient(ellipse at 30% 40%, #1a2744 0%, #080d1a 60%),
+                  radial-gradient(ellipse at 80% 80%, #1a1a2e 0%, transparent 50%);
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 20px;
+    }
+
+    .login-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url('src/img/dirlogo.png') center/contain no-repeat;
+      opacity: 0.15;
+      pointer-events: none;
     }
 
     .login-card {
@@ -266,10 +274,10 @@
   <div class="login-bg">
     <div class="login-card animate-fade">
       <div class="login-logo">
-        <img src="src/img/logo_geston.png" alt="LOGO" style="height:64px;border-radius:8px">
+        <img src="src/img/favicon.png" alt="LOGO" style="width:64px;height:64px;border-radius:12px">
         <div class="login-logo-text">
-          <div class="login-logo-title">SAE 911</div>
-          <div class="login-logo-subtitle">Capacitaciones</div>
+          <div class="login-logo-title">911 - Admin</div>
+          <div class="login-logo-subtitle">Gestión General</div>
         </div>
       </div>
       
